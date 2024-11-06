@@ -1,3 +1,9 @@
+print:prompt
+现在开发boas语言实现print打印功能的全流程，完整的cmake编译文件体系，词法分析，语法分析，语义分析，AST转mlir,到最后的输出hello world,全实现，一键执行创建所有文件，不包含boas目录
+
+
+
+
 
 基于mlir 去开发一门编程语言叫做boas，语法跟python一致，拥有C++的性能，rust的内存安全，添加一个go语言的go关键字，实现多线程，以及内存安全，高效，simd，支持gpu编程，等新特性，请给出详细步骤和示例，一键生成项目的bash脚本
 
