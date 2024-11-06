@@ -17,11 +17,11 @@ git add .
 # 创建初始提交
 git commit -m "Initial commit: Basic print functionality"
 
-# 创建print分支
-git checkout -b print
+# 创建def_print分支
+git checkout -b def_print
 
-# 添加远程仓库（需要替换为你的仓库URL）
-git remote add origin https://github.com/TianZhenGG/Boas.git
+# 添加远程仓库
+# git remote add origin https://github.com/TianZhenGG/Boas.git
 
 # 推送到远程
-git push -u origin print
+git push -u origin def_print

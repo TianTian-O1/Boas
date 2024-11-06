@@ -9,7 +9,13 @@ enum TokenType {
   TOK_PRINT,
   TOK_STRING,
   TOK_LPAREN,
-  TOK_RPAREN
+  TOK_RPAREN,
+  TOK_DEF,
+  TOK_COLON,
+  TOK_INDENT,
+  TOK_DEDENT,
+  TOK_NEWLINE,
+  TOK_IDENTIFIER
 };
 
 struct Token {
@@ -19,13 +25,15 @@ struct Token {
 
 class Lexer {
 public:
-  Lexer(const std::string &input) : input_(input), pos_(0) {}
+  Lexer(const std::string &input) : input_(input), pos_(0), indent_level_(0) {}
   Token getNextToken();
 
 private:
   std::string input_;
   size_t pos_;
+  int indent_level_;
   void skipWhitespace();
+  int getIndentLevel();
 };
 
 } // namespace boas

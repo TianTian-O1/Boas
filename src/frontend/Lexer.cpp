@@ -3,23 +3,70 @@
 namespace boas {
 
 void Lexer::skipWhitespace() {
-  while (pos_ < input_.length() && isspace(input_[pos_])) {
+  while (pos_ < input_.length() && 
+         (input_[pos_] == ' ' || input_[pos_] == '\t')) {
     pos_++;
   }
 }
 
-Token Lexer::getNextToken() {
-  skipWhitespace();
+int Lexer::getIndentLevel() {
+  int spaces = 0;
+  size_t curr_pos = pos_;
+  
+  // 跳过换行符后的空格
+  while (curr_pos < input_.length() && 
+         (input_[curr_pos] == ' ' || input_[curr_pos] == '\t')) {
+    if (input_[curr_pos] == ' ') {
+      spaces++;
+    } else if (input_[curr_pos] == '\t') {
+      spaces += 4; // 将tab转换为4个空格
+    }
+    curr_pos++;
+  }
+  
+  return spaces / 4;
+}
 
+Token Lexer::getNextToken() {
   if (pos_ >= input_.length()) {
     return {TOK_EOF, ""};
   }
 
-  if (input_.substr(pos_, 5) == "print") {
-    pos_ += 5;
-    return {TOK_PRINT, "print"};
+  // 处理换行和缩进
+  if (input_[pos_] == '\n') {
+    pos_++;
+    skipWhitespace();
+    int new_indent = getIndentLevel();
+    
+    if (new_indent > indent_level_) {
+      indent_level_ = new_indent;
+      return {TOK_INDENT, std::string(4 * new_indent, ' ')};
+    } else if (new_indent < indent_level_) {
+      indent_level_ = new_indent;
+      return {TOK_DEDENT, ""};
+    }
+    return {TOK_NEWLINE, "\n"};
   }
 
+  skipWhitespace();
+
+  // 处理关键字和标识符
+  if (isalpha(input_[pos_]) || input_[pos_] == '_') {
+    std::string identifier;
+    while (pos_ < input_.length() && 
+           (isalnum(input_[pos_]) || input_[pos_] == '_')) {
+      identifier += input_[pos_++];
+    }
+    
+    if (identifier == "print") {
+      return {TOK_PRINT, identifier};
+    } else if (identifier == "def") {
+      return {TOK_DEF, identifier};
+    }
+    return {TOK_IDENTIFIER, identifier};
+  }
+
+  // 处理标点符号
   if (input_[pos_] == '(') {
     pos_++;
     return {TOK_LPAREN, "("};
@@ -30,13 +77,19 @@ Token Lexer::getNextToken() {
     return {TOK_RPAREN, ")"};
   }
 
+  if (input_[pos_] == ':') {
+    pos_++;
+    return {TOK_COLON, ":"};
+  }
+
+  // 处理字符串
   if (input_[pos_] == '"') {
     std::string str;
-    pos_++; // 跳过开始的引号
+    pos_++;
     while (pos_ < input_.length() && input_[pos_] != '"') {
       str += input_[pos_++];
     }
-    pos_++; // 跳过结束的引号
+    pos_++;
     return {TOK_STRING, str};
   }
 
