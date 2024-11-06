@@ -1,196 +1,139 @@
-为了能够通过一个命令直接将编写的源代码编译为二进制文件，完整的编译器流程可以集成到一个Python脚本中。我们将通过以下步骤实现这一目标：
 
-1. **整合编译器前端**：词法分析、语法解析和AST生成。
-2. **整合MLIR生成和优化**：通过MLIR生成中间表示并进行优化。
-3. **整合LLVM代码生成和链接**：使用MLIR和LLVM工具链生成二进制文件。
+基于mlir 去开发一门编程语言叫做boas，语法跟python一致，拥有C++的性能，rust的内存安全，添加一个go语言的go关键字，实现多线程，以及内存安全，高效，simd，支持gpu编程，等新特性，请给出详细步骤和示例，一键生成项目的bash脚本
 
-### 最终目标：
-你编写的程序会经过解析、MLIR生成、优化、LLVM后端处理，最终生成二进制文件，可以通过命令行直接运行，如下：
-```bash
-python my_compiler.py source_code.txt -o output_binary
+
+我来帮你设计这个基于MLIR的Boas编程语言开发计划。我会创建一个包含项目结构、核心实现步骤和自动化构建脚本的详细方案。
+
+
+
+让我解释一下这个项目的主要组件和实现步骤：
+
+1. 项目结构概述：
+- src/: 源代码目录
+  - frontend/: 编译器前端，包含词法分析器和语法分析器
+  - ast/: 抽象语法树定义
+  - parser/: Python 语法解析器
+  - codegen/: MLIR 代码生成
+  - optimizer/: MLIR 优化passes
+  - runtime/: 运行时系统
+- include/: 头文件
+- lib/: 库文件
+- test/: 测试用例
+- examples/: 示例代码
+- docs/: 文档
+
+2. 核心特性实现：
+
+a) Python 语法兼容：
+- 使用自定义的词法分析器和语法分析器
+- 实现 Python AST 到 MLIR 方言的转换
+- 保持 Python 的缩进语法和动态特性
+
+b) C++ 性能：
+- 通过 MLIR 优化管道
+- 使用 LLVM 后端优化
+- 实现静态类型推断
+
+c) Rust 内存安全：
+```c++
+class MemoryManager {
+    // 线程安全的内存分配
+    void* allocate(size_t size);
+    // 自动内存回收
+    void deallocate(void* ptr);
+};
 ```
 
-### 1. 编写完整的Python编译器脚本
+d) Go 并发：
+```cpp
+// MLIR Dialect 定义
+def Boas_GoOp : Op<Boas_Dialect, "go", []> {
+    let summary = "Spawn a new goroutine";
+    let arguments = (ins FunctionType:$fn);
+};
+```
+
+e) SIMD 支持：
+```cpp
+def Boas_VectorOp : Op<Boas_Dialect, "vector", [Pure]> {
+    let arguments = (ins VectorType:$input);
+    let results = (outs VectorType:$result);
+};
+```
+
+f) GPU 支持：
+```cpp
+def Boas_LaunchKernelOp : Op<Boas_GPUDialect, "launch_kernel", []> {
+    let arguments = (ins 
+        Index:$gridDimX, Index:$gridDimY, Index:$gridDimZ,
+        Index:$blockDimX, Index:$blockDimY, Index:$blockDimZ,
+        FunctionType:$kernel
+    );
+};
+```
+
+3. 编译流程：
+1. 源代码 → Python AST
+2. Python AST → Boas MLIR Dialect
+3. Boas Dialect → MLIR 标准方言
+4. 优化 passes
+5. MLIR → LLVM IR
+6. LLVM IR → 机器码
+
+4. 使用示例：
 
 ```python
-import os
-import subprocess
-import ply.lex as lex
-import ply.yacc as yacc
-import sys
-
-# ========== 词法分析 ==========
-tokens = ['NUMBER', 'PLUS', 'MINUS', 'MULT', 'DIV', 'LPAREN', 'RPAREN', 'ID', 'EQUAL']
-
-t_PLUS = r'\+'
-t_MINUS = r'-'
-t_MULT = r'\*'
-t_DIV = r'/'
-t_LPAREN = r'\('
-t_RPAREN = r'\)'
-t_EQUAL = r'='
-
-def t_NUMBER(t):
-    r'\d+'
-    t.value = int(t.value)
-    return t
-
-def t_ID(t):
-    r'[a-zA-Z_][a-zA-Z_0-9]*'
-    return t
-
-t_ignore = ' \t'
-
-def t_error(t):
-    print(f"Illegal character '{t.value[0]}'")
-    t.lexer.skip(1)
-
-lexer = lex.lex()
-
-# ========== 语法分析 ==========
-precedence = (
-    ('left', 'PLUS', 'MINUS'),
-    ('left', 'MULT', 'DIV'),
-)
-
-class BinOp:
-    def __init__(self, left, op, right):
-        self.left = left
-        self.op = op
-        self.right = right
-
-class Number:
-    def __init__(self, value):
-        self.value = value
-
-class Assign:
-    def __init__(self, var, expr):
-        self.var = var
-        self.expr = expr
-
-def p_expression_binop(p):
-    '''expression : expression PLUS expression
-                  | expression MINUS expression
-                  | expression MULT expression
-                  | expression DIV expression'''
-    p[0] = BinOp(p[1], p[2], p[3])
-
-def p_expression_number(p):
-    'expression : NUMBER'
-    p[0] = Number(p[1])
-
-def p_assignment(p):
-    'statement : ID EQUAL expression'
-    p[0] = Assign(p[1], p[3])
-
-def p_error(p):
-    print(f"Syntax error at {p.value}")
-
-parser = yacc.yacc()
-
-# ========== MLIR生成器 ==========
-class MLIRGenerator:
-    def __init__(self):
-        self.code = []
-
-    def generate(self, node):
-        if isinstance(node, Number):
-            return f"{node.value} : i32"
-        elif isinstance(node, BinOp):
-            left = self.generate(node.left)
-            right = self.generate(node.right)
-            if node.op == '+':
-                return f"addi {left}, {right} : i32"
-            elif node.op == '-':
-                return f"subi {left}, {right} : i32"
-            elif node.op == '*':
-                return f"muli {left}, {right} : i32"
-            elif node.op == '/':
-                return f"divi {left}, {right} : i32"
-        elif isinstance(node, Assign):
-            expr = self.generate(node.expr)
-            self.code.append(f"%{node.var} = {expr}")
-
-    def get_mlir(self):
-        return '\n'.join(self.code)
-
-# ========== 生成二进制文件 ==========
-def generate_binary(mlir_code, output_file):
-    with open('temp.mlir', 'w') as f:
-        f.write(mlir_code)
-
-    # 使用MLIR工具链生成LLVM IR
-    subprocess.run(["mlir-opt", "temp.mlir", "-convert-llvm", "-o", "temp_llvm.mlir"], check=True)
-
-    # 使用mlir-translate将MLIR转换为LLVM IR
-    subprocess.run(["mlir-translate", "--mlir-to-llvmir", "temp_llvm.mlir", "-o", "temp.ll"], check=True)
-
-    # 使用llc将LLVM IR转换为目标文件
-    subprocess.run(["llc", "-filetype=obj", "temp.ll", "-o", "temp.o"], check=True)
-
-    # 链接生成可执行文件
-    subprocess.run(["gcc", "temp.o", "-o", output_file], check=True)
-
-    # 清理临时文件
-    os.remove('temp.mlir')
-    os.remove('temp_llvm.mlir')
-    os.remove('temp.ll')
-    os.remove('temp.o')
-
-# ========== 主编译器入口 ==========
-def compile_source_code(source_code, output_file):
-    # 解析输入
-    ast = parser.parse(source_code)
+# 并行计算示例
+def parallel_sum(numbers: list[int]) -> int:
+    @simd
+    def vector_add(chunk: list[int]) -> int:
+        return sum(chunk)
     
-    # 生成MLIR代码
-    generator = MLIRGenerator()
-    generator.generate(ast)
-    mlir_code = generator.get_mlir()
-    print(f"Generated MLIR code:\n{mlir_code}")
+    chunks = split_into_chunks(numbers, 4)
+    results = []
     
-    # 调用工具链生成二进制
-    generate_binary(mlir_code, output_file)
-    print(f"Compilation complete! Binary saved as {output_file}")
-
-if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: python my_compiler.py <source_file> -o <output_binary>")
-        sys.exit(1)
-
-    source_file = sys.argv[1]
-    output_file = sys.argv[3]
-
-    with open(source_file, 'r') as f:
-        source_code = f.read()
-
-    compile_source_code(source_code, output_file)
+    for chunk in chunks:
+        go results.append(vector_add(chunk))
+    
+    return sum(results)
 ```
 
-### 2. 测试编译器
+5. 构建步骤：
 
-#### 编写测试源代码文件：
-例如编写一个简单的源代码文件 `source_code.txt`：
-```txt
-a = 5 + 3 * 2
-```
-
-#### 执行编译命令：
 ```bash
-python my_compiler.py source_code.txt -o output_binary
+cd boas-lang
+./build.sh
 ```
 
-#### 检查输出：
+要开始使用这个项目：
+
+1. 克隆生成的项目：
 ```bash
-./output_binary
+./boas-project.sh
+cd boas-lang
 ```
 
-此时你应该看到正确的输出，并能够执行编译后的二进制文件。
+2. 安装依赖：
+- LLVM (>=15.0.0)
+- MLIR
+- CMake (>=3.20)
+- Python 3
+- Ninja 或 Make
 
-### 3. 流程回顾
+3. 构建项目：
+```bash
+./build.sh
+```
 
-1. **词法分析和语法解析**：通过Ply解析输入的源代码，生成AST。
-2. **MLIR生成**：通过遍历AST生成MLIR中间表示。
-3. **MLIR优化与LLVM后端**：使用MLIR工具链生成优化后的LLVM IR，并通过LLVM工具链生成二进制文件。
-4. **执行生成的二进制文件**：可以通过`gcc`链接，并最终生成可执行的二进制文件。
+4. 运行示例：
+```bash
+./build/bin/boasc examples/hello_world.boas -o hello_world
+./hello_world
+```
 
-这样，你的编译器可以集成在一个命令中完成整个编译流程，将源代码编译为二进制文件并直接执行。
+下一步开发建议：
+
+1. 实现基本的 Python 语法解析器
+2. 添加 MLIR Dialect 转换
+3. 实现内存安全检查
+4. 添加并发运行时
