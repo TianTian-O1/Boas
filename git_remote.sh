@@ -13,13 +13,13 @@ EOF
 
 
 # 创建def_print分支
-git checkout -b calc
+git checkout -b variable
 
 # 添加所有文件
 git add .
 
 # 创建初始提交
-git commit -m "Add arithmetic operations and print functionality"
+git commit -m "Add variable operations"
 
 
 

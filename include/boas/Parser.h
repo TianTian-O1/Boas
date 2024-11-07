@@ -21,6 +21,7 @@ private:
   std::unique_ptr<ExprNode> parseExpression();
   std::unique_ptr<ExprNode> parseTerm();
   std::unique_ptr<ExprNode> parseFactor();
+  std::unique_ptr<ASTNode> parseAssignment();
 };
 
 } // namespace boas

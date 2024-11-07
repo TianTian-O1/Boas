@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "Value.h"
 
 namespace boas {
 
@@ -56,27 +57,15 @@ private:
 class PrintNode : public ASTNode {
 public:
   PrintNode(std::unique_ptr<ExprNode> expr) 
-    : expr_(std::move(expr)), evaluatedValue_(0.0) {}
+    : expr_(std::move(expr)) {}
   
   ExprNode* getExpression() const { return expr_.get(); }
-  
-  void setEvaluatedValue(double value) { evaluatedValue_ = value; }
-  double getEvaluatedValue() const { return evaluatedValue_; }
-  
-  bool isStringExpr() const { 
-    return dynamic_cast<const StringNode*>(expr_.get()) != nullptr; 
-  }
-  
-  std::string getStringValue() const {
-    if (auto strNode = dynamic_cast<const StringNode*>(expr_.get())) {
-      return strNode->getValue();
-    }
-    return "";
-  }
+  void setValue(const Value& val) { value_ = val; }
+  const Value& getValue() const { return value_; }
 
 private:
   std::unique_ptr<ExprNode> expr_;
-  double evaluatedValue_;
+  Value value_;
 };
 
 // 函数节点
@@ -105,6 +94,35 @@ public:
 
 private:
   std::vector<std::unique_ptr<ASTNode>> statements_;
+};
+
+class AssignmentNode : public ASTNode {
+public:
+  AssignmentNode(const std::string& name, std::unique_ptr<ExprNode> expr)
+    : name_(name), expr_(std::move(expr)) {}
+  
+  const std::string& getName() const { return name_; }
+  ExprNode* getExpression() const { return expr_.get(); }
+
+private:
+  std::string name_;
+  std::unique_ptr<ExprNode> expr_;
+};
+
+class BooleanNode : public ExprNode {
+public:
+  BooleanNode(bool value) : value_(value) {}
+  bool getValue() const { return value_; }
+private:
+  bool value_;
+};
+
+class VariableNode : public ExprNode {
+public:
+  VariableNode(const std::string& name) : name_(name) {}
+  const std::string& getName() const { return name_; }
+private:
+  std::string name_;
 };
 
 } // namespace boas

@@ -8,8 +8,14 @@ void SemanticAnalyzer::analyze(ASTNode* node) {
     for (const auto& stmt : blockNode->getStatements()) {
       if (auto printNode = dynamic_cast<PrintNode*>(stmt.get())) {
         analyzePrintNode(printNode);
+      } else if (auto assignNode = dynamic_cast<AssignmentNode*>(stmt.get())) {
+        analyzeAssignmentNode(assignNode);
+      } else if (auto funcNode = dynamic_cast<FunctionNode*>(stmt.get())) {
+        analyzeFunctionNode(funcNode);
       }
     }
+  } else if (auto funcNode = dynamic_cast<FunctionNode*>(node)) {
+    analyzeFunctionNode(funcNode);
   }
 }
 
@@ -18,39 +24,78 @@ void SemanticAnalyzer::analyzePrintNode(PrintNode* node) {
     errors_.emplace_back("Print statement requires an expression");
     return;
   }
-  
-  // 计算表达式的值并存储在PrintNode中
-  double value = evaluateExpression(node->getExpression());
-  node->setEvaluatedValue(value);
+  node->setValue(evaluateExpr(node->getExpression()));
 }
 
-double SemanticAnalyzer::evaluateExpression(const ExprNode* expr) {
-  if (const auto* numberNode = dynamic_cast<const NumberNode*>(expr)) {
-    return numberNode->getValue();
+void SemanticAnalyzer::analyzeAssignmentNode(AssignmentNode* node) {
+  if (!node->getExpression()) {
+    errors_.emplace_back("Assignment requires an expression");
+    return;
   }
-  if (dynamic_cast<const StringNode*>(expr)) {
-    // 对于字符串，我们返回一个特殊值，比如0
-    return 0.0;
+  symbolTable_[node->getName()] = evaluateExpr(node->getExpression());
+}
+
+Value SemanticAnalyzer::evaluateExpr(const ExprNode* expr) {
+  if (auto numNode = dynamic_cast<const NumberNode*>(expr)) {
+    return Value(numNode->getValue());
   }
   
-  if (const auto* binaryNode = dynamic_cast<const BinaryOpNode*>(expr)) {
-    double left = evaluateExpression(binaryNode->getLeft());
-    double right = evaluateExpression(binaryNode->getRight());
+  if (auto strNode = dynamic_cast<const StringNode*>(expr)) {
+    return Value(strNode->getValue());
+  }
+  
+  if (auto boolNode = dynamic_cast<const BooleanNode*>(expr)) {
+    return Value(boolNode->getValue());
+  }
+  
+  if (auto varNode = dynamic_cast<const VariableNode*>(expr)) {
+    auto it = symbolTable_.find(varNode->getName());
+    if (it != symbolTable_.end()) {
+      return it->second;
+    }
+    std::cout << "Variable not found: " << varNode->getName() << std::endl;
+    return Value(0.0);
+  }
+  
+  if (auto binNode = dynamic_cast<const BinaryOpNode*>(expr)) {
+    Value left = evaluateExpr(binNode->getLeft());
+    Value right = evaluateExpr(binNode->getRight());
     
-    switch (binaryNode->getOp()) {
-      case BinaryOpNode::ADD: return left + right;
-      case BinaryOpNode::SUB: return left - right;
-      case BinaryOpNode::MUL: return left * right;
-      case BinaryOpNode::DIV: 
-        if (right == 0.0) {
+    if (left.isNumber() && right.isNumber()) {
+      double lval = left.asNumber();
+      double rval = right.asNumber();
+      
+      switch (binNode->getOp()) {
+        case BinaryOpNode::ADD: return Value(lval + rval);
+        case BinaryOpNode::SUB: return Value(lval - rval);
+        case BinaryOpNode::MUL: return Value(lval * rval);
+        case BinaryOpNode::DIV: 
+          if (rval != 0.0) {
+            return Value(lval / rval);
+          }
           errors_.emplace_back("Division by zero");
-          return 0.0;
-        }
-        return left / right;
+          return Value(0.0);
+      }
     }
   }
   
-  return 0.0;
+  return Value(0.0);
+}
+
+void SemanticAnalyzer::analyzeFunctionNode(FunctionNode* node) {
+  std::unordered_map<std::string, Value> localSymbols;
+  auto oldSymbols = std::move(symbolTable_);
+  symbolTable_ = std::move(localSymbols);
+  
+  for (const auto& stmt : node->getBody()) {
+    if (auto printNode = dynamic_cast<PrintNode*>(stmt.get())) {
+      analyzePrintNode(printNode);
+    } else if (auto assignNode = dynamic_cast<AssignmentNode*>(stmt.get())) {
+      analyzeAssignmentNode(assignNode);
+    }
+  }
+  
+  symbolTable_ = std::move(oldSymbols);
 }
 
 } // namespace boas
