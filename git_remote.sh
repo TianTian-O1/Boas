@@ -22,9 +22,8 @@ git add .
 git commit -m "Add variable operations"
 
 
-
 # 添加远程仓库
 # git remote add origin https://github.com/TianZhenGG/Boas.git
 
 # 推送到远程
-git push -u origin calc
+git push -u origin variable
