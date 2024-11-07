@@ -11,17 +11,20 @@ build/
 *.a
 EOF
 
+
+# 创建def_print分支
+git checkout -b calc
+
 # 添加所有文件
 git add .
 
 # 创建初始提交
-git commit -m "Initial commit: Basic print functionality"
+git commit -m "Add arithmetic operations and print functionality"
 
-# 创建def_print分支
-git checkout -b def_print
+
 
 # 添加远程仓库
 # git remote add origin https://github.com/TianZhenGG/Boas.git
 
 # 推送到远程
-git push -u origin def_print
+git push -u origin calc

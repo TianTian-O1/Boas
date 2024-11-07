@@ -18,6 +18,9 @@ private:
   std::unique_ptr<ASTNode> parsePrint();
   std::unique_ptr<ASTNode> parseFunctionDef();
   std::vector<std::unique_ptr<ASTNode>> parseBlock();
+  std::unique_ptr<ExprNode> parseExpression();
+  std::unique_ptr<ExprNode> parseTerm();
+  std::unique_ptr<ExprNode> parseFactor();
 };
 
 } // namespace boas

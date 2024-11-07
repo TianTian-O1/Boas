@@ -1,6 +1,7 @@
 #include "boas/Lexer.h"
 #include "boas/Parser.h"
 #include "boas/MLIRGen.h"
+#include "boas/SemanticAnalyzer.h"
 #include "mlir/IR/MLIRContext.h"
 #include <iostream>
 #include <fstream>
@@ -21,29 +22,34 @@ int main(int argc, char **argv) {
   boas::Parser parser(lexer);
   auto ast = parser.parse();
 
-  // MLIR生成
-  mlir::MLIRContext context;
-  
-  boas::MLIRGenerator generator(context);
-  auto *module = generator.generateModule(ast.get());
-  
-  // 输出MLIR
-  if (module) {
-    module->dump();
+  // 语义分析
+  boas::SemanticAnalyzer analyzer;
+  analyzer.analyze(ast.get());
+  if (analyzer.hasErrors()) {
+    for (const auto& error : analyzer.getErrors()) {
+      std::cerr << "Semantic error: " << error.getMessage() << std::endl;
+    }
+    return 1;
   }
 
+  // MLIR生成
+  mlir::MLIRContext context;
+  boas::MLIRGenerator generator(context);
+  generator.generateModule(ast.get());  // 不需要存储返回值
+  
   // 执行
-  if (auto funcNode = dynamic_cast<boas::FunctionNode*>(ast.get())) {
-    if (funcNode->getName() == "main") {
-      for (const auto &stmt : funcNode->getBody()) {
-        if (auto printNode = dynamic_cast<boas::PrintNode*>(stmt.get())) {
-          std::cout << printNode->getValue() << std::endl;
+  if (auto blockNode = dynamic_cast<boas::BlockNode*>(ast.get())) {
+    for (const auto& stmt : blockNode->getStatements()) {
+      if (auto printNode = dynamic_cast<boas::PrintNode*>(stmt.get())) {
+        if (printNode->isStringExpr()) {
+          std::cout << printNode->getStringValue() << std::endl;
+        } else {
+          std::cout << printNode->getEvaluatedValue() << std::endl;
         }
       }
     }
   } else if (auto printNode = dynamic_cast<boas::PrintNode*>(ast.get())) {
-    // 直接处理顶层的print语句
-    std::cout << printNode->getValue() << std::endl;
+    std::cout << printNode->getEvaluatedValue() << std::endl;
   }
 
   return 0;

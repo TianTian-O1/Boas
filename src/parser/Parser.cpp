@@ -11,13 +11,10 @@ std::unique_ptr<ASTNode> Parser::parsePrint() {
   advance(); // 跳过print
   if (currentToken_.type == TOK_LPAREN) {
     advance();
-    if (currentToken_.type == TOK_STRING) {
-      std::string value = currentToken_.value;
+    auto expr = parseExpression();
+    if (expr && currentToken_.type == TOK_RPAREN) {
       advance();
-      if (currentToken_.type == TOK_RPAREN) {
-        advance();
-        return std::make_unique<PrintNode>(value);
-      }
+      return std::make_unique<PrintNode>(std::move(expr));
     }
   }
   return nullptr;
@@ -85,28 +82,76 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDef() {
 }
 
 std::unique_ptr<ASTNode> Parser::parse() {
-  advance();
+  std::vector<std::unique_ptr<ASTNode>> statements;
+  advance();  // 获取第一个token
   
-  if (currentToken_.type == TOK_DEF) {
-    return parseFunctionDef();
-  }
-  
-  if (currentToken_.type == TOK_PRINT) {
-    return parsePrint();
-  }
-  
-  // 处理顶层语句
-  auto statements = parseBlock();
-  if (!statements.empty()) {
-    // 如果只有一个语句，直接返回
-    if (statements.size() == 1) {
-      return std::move(statements[0]);
+  while (currentToken_.type != TOK_EOF) {
+    if (currentToken_.type == TOK_PRINT) {
+      auto stmt = parsePrint();
+      if (stmt) {
+        statements.push_back(std::move(stmt));
+      }
     }
-    // 否则创建一个Block节点
-    return std::make_unique<BlockNode>(std::move(statements));
+    if (currentToken_.type == TOK_NEWLINE) {
+      advance();
+    } else if (currentToken_.type != TOK_EOF) {
+      advance();
+    }
+  }
+  
+  return std::make_unique<BlockNode>(std::move(statements));
+}
+
+std::unique_ptr<ExprNode> Parser::parseFactor() {
+  if (currentToken_.type == TOK_NUMBER) {
+    double value = std::stod(currentToken_.value);
+    advance();
+    return std::make_unique<NumberNode>(value);
+  }
+  
+  if (currentToken_.type == TOK_LPAREN) {
+    advance();
+    auto expr = parseExpression();
+    if (currentToken_.type == TOK_RPAREN) {
+      advance();
+      return expr;
+    }
   }
   
   return nullptr;
+}
+
+std::unique_ptr<ExprNode> Parser::parseTerm() {
+  auto left = parseFactor();
+  
+  while (currentToken_.type == TOK_MULTIPLY || currentToken_.type == TOK_DIVIDE) {
+    BinaryOpNode::OpType op = (currentToken_.type == TOK_MULTIPLY) ? 
+                              BinaryOpNode::MUL : BinaryOpNode::DIV;
+    advance();
+    auto right = parseFactor();
+    left = std::make_unique<BinaryOpNode>(op, std::move(left), std::move(right));
+  }
+  
+  return left;
+}
+
+std::unique_ptr<ExprNode> Parser::parseExpression() {
+  if (currentToken_.type == TOK_STRING) {
+    auto strNode = std::make_unique<StringNode>(currentToken_.value);
+    advance();
+    return strNode;
+  }
+  auto left = parseTerm();
+  
+  while (currentToken_.type == TOK_PLUS || currentToken_.type == TOK_MINUS) {
+    BinaryOpNode::OpType op = (currentToken_.type == TOK_PLUS) ? 
+                              BinaryOpNode::ADD : BinaryOpNode::SUB;
+    advance();
+    auto right = parseTerm();
+    left = std::make_unique<BinaryOpNode>(op, std::move(left), std::move(right));
+  }
+  
+  return left;
 }
 
 } // namespace boas

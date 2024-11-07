@@ -28,8 +28,34 @@ int Lexer::getIndentLevel() {
 }
 
 Token Lexer::getNextToken() {
+  skipWhitespace();
+  
   if (pos_ >= input_.length()) {
     return {TOK_EOF, ""};
+  }
+
+  // 处理数字
+  if (isdigit(input_[pos_]) || input_[pos_] == '.') {
+    std::string number;
+    bool hasDecimal = false;
+    
+    while (pos_ < input_.length() && 
+           (isdigit(input_[pos_]) || input_[pos_] == '.')) {
+      if (input_[pos_] == '.') {
+        if (hasDecimal) break;
+        hasDecimal = true;
+      }
+      number += input_[pos_++];
+    }
+    return {TOK_NUMBER, number};
+  }
+
+  // 处理运算符
+  switch (input_[pos_]) {
+    case '+': pos_++; return {TOK_PLUS, "+"};
+    case '-': pos_++; return {TOK_MINUS, "-"};
+    case '*': pos_++; return {TOK_MULTIPLY, "*"};
+    case '/': pos_++; return {TOK_DIVIDE, "/"};
   }
 
   // 处理换行和缩进
@@ -47,8 +73,6 @@ Token Lexer::getNextToken() {
     }
     return {TOK_NEWLINE, "\n"};
   }
-
-  skipWhitespace();
 
   // 处理关键字和标识符
   if (isalpha(input_[pos_]) || input_[pos_] == '_') {
@@ -84,13 +108,15 @@ Token Lexer::getNextToken() {
 
   // 处理字符串
   if (input_[pos_] == '"') {
+    pos_++; // 跳过开始的引号
     std::string str;
-    pos_++;
     while (pos_ < input_.length() && input_[pos_] != '"') {
       str += input_[pos_++];
     }
-    pos_++;
-    return {TOK_STRING, str};
+    if (pos_ < input_.length() && input_[pos_] == '"') {
+      pos_++; // 跳过结束的引号
+      return {TOK_STRING, str};
+    }
   }
 
   return {TOK_EOF, ""};
