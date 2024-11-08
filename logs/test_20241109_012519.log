@@ -1,7 +1,7 @@
-Starting tests at Fri Nov  8 19:37:42 CST 2024
+Starting tests at Sat Nov  9 01:25:19 CST 2024
 
 =========================================
-Testing: examples/basic/calc.bs
+Testing: tests/basic/calc.bs
 Mode: run
 Output:
 17
@@ -9,7 +9,7 @@ Output:
 [0;32m✓ Test passed[0m
 
 =========================================
-Testing: examples/basic/calc.bs
+Testing: tests/basic/calc.bs
 Mode: build
 Output:
 17.00
@@ -17,21 +17,41 @@ Output:
 [0;32m✓ Test passed[0m
 
 =========================================
-Testing: examples/basic/print_def.bs
+Testing: tests/basic/list.bs
+Mode: run
+[0;31m✗ Test failed: Empty output[0m
+
+=========================================
+Testing: tests/basic/list.bs
+Mode: build
+[0;31m✗ Test failed: Empty output[0m
+
+=========================================
+Testing: tests/basic/matrix_mul.bs
+Mode: run
+[0;31m✗ Test failed: Empty output[0m
+
+=========================================
+Testing: tests/basic/matrix_mul.bs
+Mode: build
+[0;31m✗ Test failed: Empty output[0m
+
+=========================================
+Testing: tests/basic/print_def.bs
 Mode: run
 Output:
 hello
 [0;32m✓ Test passed[0m
 
 =========================================
-Testing: examples/basic/print_def.bs
+Testing: tests/basic/print_def.bs
 Mode: build
 Output:
 hello
 [0;32m✓ Test passed[0m
 
 =========================================
-Testing: examples/basic/print_numbers.bs
+Testing: tests/basic/print_numbers.bs
 Mode: run
 Output:
 42
@@ -39,7 +59,7 @@ Output:
 [0;32m✓ Test passed[0m
 
 =========================================
-Testing: examples/basic/print_numbers.bs
+Testing: tests/basic/print_numbers.bs
 Mode: build
 Output:
 42.00
@@ -47,7 +67,7 @@ Output:
 [0;32m✓ Test passed[0m
 
 =========================================
-Testing: examples/basic/variable.bs
+Testing: tests/basic/variable.bs
 Mode: run
 Output:
 10
@@ -58,7 +78,7 @@ true
 [0;32m✓ Test passed[0m
 
 =========================================
-Testing: examples/basic/variable.bs
+Testing: tests/basic/variable.bs
 Mode: build
 Output:
 10.00
@@ -70,8 +90,10 @@ true
 
 === Test Summary ===
 calc.bs: [0;32m✓ Passed[0m | [0;32m✓ Passed[0m
+list.bs: [0;31m✗ Failed[0m | [0;31m✗ Failed[0m
+matrix_mul.bs: [0;31m✗ Failed[0m | [0;31m✗ Failed[0m
 print_def.bs: [0;32m✓ Passed[0m | [0;32m✓ Passed[0m
 print_numbers.bs: [0;32m✓ Passed[0m | [0;32m✓ Passed[0m
 variable.bs: [0;32m✓ Passed[0m | [0;32m✓ Passed[0m
 
-Total: 8 | Passed: [0;32m8[0m | Failed: [0;31m0[0m
+Total: 12 | Passed: [0;32m8[0m | Failed: [0;31m4[0m

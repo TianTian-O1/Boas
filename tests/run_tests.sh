@@ -72,8 +72,8 @@ failed_tests=0
 log_message "Starting tests at $(date)"
 
 # 运行所有测试
-for dir in examples/*/; do
-    if [ -d "$dir" ] && [ "$dir" != "examples/expected/" ]; then
+for dir in tests/*/; do
+    if [ -d "$dir" ] && [ "$dir" != "tests/expected/" ]; then
         for test in "$dir"*.bs; do
             if [ -f "$test" ]; then
                 ((total_tests+=2))  # 每个文件测试两种模式
@@ -109,8 +109,8 @@ print_summary() {
     log_message "\n=== Test Summary ==="
     
     # 遍历所有测试文件
-    for dir in examples/*/; do
-        if [ -d "$dir" ] && [ "$dir" != "examples/expected/" ]; then
+    for dir in tests/*/; do
+        if [ -d "$dir" ] && [ "$dir" != "tests/expected/" ]; then
             for test in "$dir"*.bs; do
                 if [ -f "$test" ]; then
                     local test_name=$(basename "$test")
