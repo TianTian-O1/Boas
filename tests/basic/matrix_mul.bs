@@ -1,0 +1,30 @@
+def matrix_mul(a: list[list[float]], b: list[list[float]]) -> list[list[float]]:
+    if len(a[0]) != len(b):
+        print("矩阵维度不匹配")
+        return []
+    
+    rows = len(a)
+    cols = len(b[0])
+    n = len(b)
+    
+    # 初始化结果矩阵
+    result = [[0.0] * cols for _ in range(rows)]
+    
+    # CPU版本的矩阵乘法
+    for i in range(rows):
+        for j in range(cols):
+            for k in range(n):
+                result[i][j] += a[i][k] * b[k][j]
+    
+    return result
+
+# 测试用例
+a = [[1.0, 2.0], [3.0, 4.0]]
+b = [[5.0, 6.0], [7.0, 8.0]]
+
+result = matrix_mul(a, b)
+
+# 打印结果
+for row in result:
+    for val in row:
+        print(val)
