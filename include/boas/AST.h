@@ -62,6 +62,25 @@ public:
   ExprNode* getExpression() const { return expr_.get(); }
   void setValue(const Value& val) { value_ = val; }
   const Value& getValue() const { return value_; }
+  
+  // 添加新的方法
+  bool isStringExpr() const {
+    return dynamic_cast<StringNode*>(expr_.get()) != nullptr;
+  }
+  
+  std::string getStringValue() const {
+    if (auto strNode = dynamic_cast<StringNode*>(expr_.get())) {
+      return strNode->getValue();
+    }
+    return "";
+  }
+  
+  double getEvaluatedValue() const {
+    if (auto numNode = dynamic_cast<NumberNode*>(expr_.get())) {
+      return numNode->getValue();
+    }
+    return 0.0;
+  }
 
 private:
   std::unique_ptr<ExprNode> expr_;

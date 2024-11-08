@@ -1,0 +1,16 @@
+Starting tests at Fri Nov  8 06:30:08 CST 2024
+
+=========================================
+Testing: examples/basic/print_numbers.bs
+Mode: run
+[0;32m✓ Test passed[0m
+
+=========================================
+Testing: examples/basic/print_numbers.bs
+Mode: build
+[0;32m✓ Test passed[0m
+
+=== Test Summary ===
+print_numbers.bs: [0;32m✓ Passed[0m | [0;32m✓ Passed[0m
+
+Total: 2 | Passed: [0;32m2[0m | Failed: [0;31m0[0m

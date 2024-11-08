@@ -3,6 +3,8 @@ project(boas LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -no-pie")
 
 find_package(MLIR REQUIRED CONFIG)
 find_package(LLVM REQUIRED CONFIG)
@@ -19,6 +21,24 @@ list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(AddLLVM)
 include(AddMLIR)
 include(HandleLLVMOptions)
+
+# 添加这些行来正确设置 LLVM 库
+llvm_map_components_to_libnames(llvm_libs
+  Core
+  Support
+  Analysis
+  IRReader
+  ExecutionEngine
+  RuntimeDyld
+  Target
+  X86CodeGen
+  X86AsmParser
+  X86Desc
+  X86Info
+  MC
+  MCParser
+  MCDisassembler
+)
 
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
