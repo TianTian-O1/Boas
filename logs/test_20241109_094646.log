@@ -1,0 +1,48 @@
+Starting tests at 2024年11月 9日 星期六 09时46分46秒 CST
+
+=========================================
+Testing: tests/basic/calc.bs
+Output:
+17
+2
+6
+true
+true
+true
+true
+true
+[0;32m✓ Test passed[0m
+
+=========================================
+Testing: tests/basic/print_def.bs
+Output:
+hello
+[0;32m✓ Test passed[0m
+
+=========================================
+Testing: tests/basic/print_numbers.bs
+Output:
+42
+3.14
+[0;32m✓ Test passed[0m
+
+=========================================
+Testing: tests/basic/test.bs
+Output:
+17
+2
+6
+[0;32m✓ Test passed[0m
+
+=========================================
+Testing: tests/basic/variable.bs
+Output:
+10
+20.5
+Boas
+true
+51
+[0;32m✓ Test passed[0m
+
+=== Test Summary ===
+Total: 5 | Passed: [0;32m5[0m | Failed: [0;31m0[0m

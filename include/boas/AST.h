@@ -37,7 +37,13 @@ private:
 
 class BinaryOpNode : public ExprNode {
 public:
-  enum OpType { ADD, SUB, MUL, DIV };
+  enum OpType { 
+    ADD, SUB, MUL, DIV, MOD, EXP, FLOOR_DIV,
+    BITAND, BITOR, BITXOR,
+    LSHIFT, RSHIFT,
+    LT, GT, LE, GE, EQ, NE,
+    AND, OR  // 添加逻辑运算符
+  };
   
   BinaryOpNode(OpType op, std::unique_ptr<ExprNode> left,
                std::unique_ptr<ExprNode> right)
@@ -142,6 +148,21 @@ public:
   const std::string& getName() const { return name_; }
 private:
   std::string name_;
+};
+
+class UnaryOpNode : public ExprNode {
+public:
+  enum OpType { NOT };
+  
+  UnaryOpNode(OpType op, std::unique_ptr<ExprNode> operand)
+    : op_(op), operand_(std::move(operand)) {}
+  
+  OpType getOp() const { return op_; }
+  const ExprNode* getOperand() const { return operand_.get(); }
+
+private:
+  OpType op_;
+  std::unique_ptr<ExprNode> operand_;
 };
 
 } // namespace boas

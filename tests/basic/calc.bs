@@ -1,2 +1,26 @@
-print(2 + 3 * 5)
-print((10 - 5) / 2.5)
+# 算术运算符
+print(2 + 3 * 5)        # 17
+print((10 - 5) / 2.5)   # 2
+print(20 % 7)           # 6
+print(2 ** 3)           # 8
+print(17 // 5)          # 3
+
+# 位运算符
+print(5 & 3)            # 1
+print(5 | 3)            # 7
+print(5 ^ 3)            # 6
+print(5 << 1)           # 10
+print(5 >> 1)           # 2
+
+# 比较运算符
+print(5 > 3)            # true
+print(5 >= 5)           # true
+print(3 < 5)            # true
+print(3 <= 5)           # true
+print(5 == 5)           # true
+print(5 != 3)           # true
+
+# 逻辑运算符
+print(true and true)    # true
+print(true or false)    # true
+print(not false)        # true

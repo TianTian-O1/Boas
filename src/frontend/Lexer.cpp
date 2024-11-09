@@ -73,6 +73,16 @@ Token Lexer::getNextToken() {
     return {TOK_EOF, ""};
   }
   
+  // 处理注释
+  if (input_[pos_] == '#') {
+    pos_++;  // 跳过 #
+    size_t start = pos_;
+    while (pos_ < input_.length() && input_[pos_] != '\n') {
+      pos_++;
+    }
+    return {TOK_COMMENT, input_.substr(start, pos_ - start)};
+  }
+  
   // 处理数字
   if (isdigit(input_[pos_]) || input_[pos_] == '.') {
     std::string num;
@@ -98,10 +108,11 @@ Token Lexer::getNextToken() {
       pos_++;
     }
     
-    if (identifier == "print") return {TOK_PRINT, identifier};
-    if (identifier == "def") return {TOK_DEF, identifier};
-    if (identifier == "true") return {TOK_TRUE, identifier};
-    if (identifier == "false") return {TOK_FALSE, identifier};
+    // 检查是否是关键字
+    auto it = keywords.find(identifier);
+    if (it != keywords.end()) {
+        return {it->second, identifier};
+    }
     
     return {TOK_IDENTIFIER, identifier};
   }
@@ -137,13 +148,35 @@ Token Lexer::getNextToken() {
     return {TOK_ASSIGN, "="};
   }
 
-  // 处理运算符
+  // 处理多字符运算符
+  if (pos_ + 1 < input_.length()) {
+    std::string op = input_.substr(pos_, 2);
+    if (op == "**") { pos_ += 2; return {TOK_POWER, "**"}; }
+    if (op == "//") { pos_ += 2; return {TOK_FLOOR_DIV, "//"}; }
+    if (op == "<=") { pos_ += 2; return {TOK_LE, "<="}; }
+    if (op == ">=") { pos_ += 2; return {TOK_GE, ">="}; }
+    if (op == "==") { pos_ += 2; return {TOK_EQ, "=="}; }
+    if (op == "!=") { pos_ += 2; return {TOK_NE, "!="}; }
+    if (op == "<<") { pos_ += 2; return {TOK_LSHIFT, "<<"}; }
+    if (op == ">>") { pos_ += 2; return {TOK_RSHIFT, ">>"}; }
+    if (op == "&&") { pos_ += 2; return {TOK_AND, "&&"}; }
+    if (op == "||") { pos_ += 2; return {TOK_OR, "||"}; }
+  }
+
+  // 单字符运算符
   switch (input_[pos_]) {
+    case '%': pos_++; return {TOK_MODULO, "%"};
+    case '&': pos_++; return {TOK_BITAND, "&"};
+    case '|': pos_++; return {TOK_BITOR, "|"};
+    case '^': pos_++; return {TOK_BITXOR, "^"};
+    case '<': pos_++; return {TOK_LT, "<"};
+    case '>': pos_++; return {TOK_GT, ">"};
     case '+': pos_++; return {TOK_PLUS, "+"};
     case '-': pos_++; return {TOK_MINUS, "-"};
     case '*': pos_++; return {TOK_MUL, "*"};
     case '/': pos_++; return {TOK_DIV, "/"};
     case '=': pos_++; return {TOK_ASSIGN, "="};
+    case '!': pos_++; return {TOK_NOT, "!"};
     case '(': pos_++; return {TOK_LPAREN, "("};
     case ')': pos_++; return {TOK_RPAREN, ")"};
   }

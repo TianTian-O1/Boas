@@ -13,17 +13,17 @@ EOF
 
 
 # 创建def_print分支
-git checkout -b build
+git checkout -b calc
 
 # 添加所有文件
 git add .
 
 # 创建初始提交
-git commit -m "Add build operations"
+git commit -m "Add calc operations"
 
 
 # 添加远程仓库
 # git remote add origin https://github.com/TianZhenGG/Boas.git
 
 # 推送到远程
-git push -u origin build
+git push -u origin calc

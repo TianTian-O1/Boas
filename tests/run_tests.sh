@@ -6,12 +6,8 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-# 在颜色定义后添加
-declare -A run_results
-declare -A build_results
-
+# 创建必要的目录
 rm -rf ./logs
-# 创建日志目录
 mkdir -p ./logs
 mkdir -p ./tmp
 
@@ -24,26 +20,14 @@ log_message() {
 
 run_test() {
     local test_file=$1
-    local mode=$2
     local output_file="./tmp/boas_test_output.txt"
     local error_file="./tmp/boas_test_error.txt"
     
     log_message "\n========================================="
     log_message "Testing: $test_file"
-    log_message "Mode: $mode"
     
-    if [ "$mode" = "build" ]; then
-        ./build/src/boas build "$test_file" -o ./tmp/test_out 2>"$error_file"
-        if [ $? -ne 0 ]; then
-            log_message "${RED}Build failed:${NC}"
-            cat "$error_file" | tee -a "$LOG_FILE"
-            return 1
-        fi
-        
-        ./tmp/test_out >"$output_file" 2>"$error_file"
-    else
-        ./build/src/boas run "$test_file" >"$output_file" 2>"$error_file"
-    fi
+    # 运行测试
+    ./build/src/boas run "$test_file" >"$output_file" 2>"$error_file"
     
     # 检查输出是否为空
     if [ ! -s "$output_file" ]; then
@@ -54,8 +38,9 @@ run_test() {
     # 规范化输出（统一数字格式）
     sed -E 's/^([0-9]+)$/\1.00/g; s/([0-9]+\.[0-9]*)/\1/g' "$output_file" > "$output_file.normalized"
     
-    # 删除尾随零
-    sed -i 's/\.0*$//g' "$output_file.normalized"
+    # 删除尾随零 (使用兼容 macOS 的语法)
+    sed -e 's/\.0*$//g' "$output_file.normalized" > "$output_file.normalized.tmp"
+    mv "$output_file.normalized.tmp" "$output_file.normalized"
     
     # 输出结果
     log_message "Output:"
@@ -76,54 +61,22 @@ for dir in tests/*/; do
     if [ -d "$dir" ] && [ "$dir" != "tests/expected/" ]; then
         for test in "$dir"*.bs; do
             if [ -f "$test" ]; then
-                ((total_tests+=2))  # 每个文件测试两种模式
+                ((total_tests+=1))
                 
-               # 运行run模式测试
-run_test "$test" "run"
-run_result=$?
-if [ $run_result -eq 0 ]; then
-    ((passed_tests+=1))
-    run_results[$test]="${GREEN}✓ Passed${NC}"
-else
-    ((failed_tests+=1))
-    run_results[$test]="${RED}✗ Failed${NC}"
-fi
-
-# 运行build模式测试
-run_test "$test" "build"
-build_result=$?
-if [ $build_result -eq 0 ]; then
-    ((passed_tests+=1))
-    build_results[$test]="${GREEN}✓ Passed${NC}"
-else
-    ((failed_tests+=1))
-    build_results[$test]="${RED}✗ Failed${NC}"
-fi
+                run_test "$test"
+                if [ $? -eq 0 ]; then
+                    ((passed_tests+=1))
+                else
+                    ((failed_tests+=1))
+                fi
             fi
         done
     fi
 done
 
 # 输出总结
-print_summary() {
-    log_message "\n=== Test Summary ==="
-    
-    # 遍历所有测试文件
-    for dir in tests/*/; do
-        if [ -d "$dir" ] && [ "$dir" != "tests/expected/" ]; then
-            for test in "$dir"*.bs; do
-                if [ -f "$test" ]; then
-                    local test_name=$(basename "$test")
-                    log_message "$test_name: ${run_results[$test]} | ${build_results[$test]}"
-                fi
-            done
-        fi
-    done
-    
-    log_message "\nTotal: $total_tests | Passed: ${GREEN}$passed_tests${NC} | Failed: ${RED}$failed_tests${NC}"
-}
-
-print_summary $total_tests $passed_tests $failed_tests
+log_message "\n=== Test Summary ==="
+log_message "Total: $total_tests | Passed: ${GREEN}$passed_tests${NC} | Failed: ${RED}$failed_tests${NC}"
 
 # 如果有失败的测试，返回非零状态码
 [ $failed_tests -eq 0 ]

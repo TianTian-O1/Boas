@@ -58,42 +58,16 @@ int main(int argc, char **argv) {
   }
 
   if (mode == "run") {
-    // 直接解释执行
     if (auto blockNode = dynamic_cast<boas::BlockNode*>(ast.get())) {
-      // 先收集所有函数定义
-      std::map<std::string, boas::FunctionNode*> functions;
       for (const auto& stmt : blockNode->getStatements()) {
-        if (auto funcNode = dynamic_cast<boas::FunctionNode*>(stmt.get())) {
-          functions[funcNode->getName()] = funcNode;
-        }
-      }
-
-      // 如果有main函数，执行main函数
-      if (auto mainFunc = functions.find("main"); mainFunc != functions.end()) {
-        for (const auto& stmt : mainFunc->second->getBody()) {
-          if (auto printNode = dynamic_cast<boas::PrintNode*>(stmt.get())) {
-            const auto& value = printNode->getValue();
-            if (value.isString()) {
-              std::cout << value.asString() << std::endl;
-            } else if (value.isNumber()) {
-              std::cout << value.asNumber() << std::endl;
-            } else if (value.isBoolean()) {
-              std::cout << (value.asBoolean() ? "true" : "false") << std::endl;
-            }
-          }
-        }
-      } else {
-        // 如果没有main函数，执行顶层语句
-        for (const auto& stmt : blockNode->getStatements()) {
-          if (auto printNode = dynamic_cast<boas::PrintNode*>(stmt.get())) {
-            const auto& value = printNode->getValue();
-            if (value.isString()) {
-              std::cout << value.asString() << std::endl;
-            } else if (value.isNumber()) {
-              std::cout << value.asNumber() << std::endl;
-            } else if (value.isBoolean()) {
-              std::cout << (value.asBoolean() ? "true" : "false") << std::endl;
-            }
+        if (auto printNode = dynamic_cast<boas::PrintNode*>(stmt.get())) {
+          const auto& value = printNode->getValue();
+          if (value.isString()) {
+            std::cout << value.asString() << std::endl;
+          } else if (value.isNumber()) {
+            std::cout << value.asNumber() << std::endl;
+          } else if (value.isBool()) {
+            std::cout << (value.asBool() ? "true" : "false") << std::endl;
           }
         }
       }

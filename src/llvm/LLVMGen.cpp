@@ -117,10 +117,10 @@ llvm::Value* LLVMGenerator::generatePrint(PrintNode* node) {
       llvm::Type::getDoubleTy(*context_),
       value.asNumber()
     );
-  } else if (value.isBoolean()) {
+  } else if (value.isBool()) {
     format = "%s\n";
     auto strGlobal = builder_->CreateGlobalString(
-      llvm::StringRef(value.asBoolean() ? "true" : "false"),
+      llvm::StringRef(value.asBool() ? "true" : "false"),
       "bool"
     );
     printValue = builder_->CreateBitCast(
