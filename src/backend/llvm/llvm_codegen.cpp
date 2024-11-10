@@ -160,10 +160,58 @@ struct PrintOpLowering : public ::mlir::ConversionPattern {
     }
 };
 
+struct TensorCreateOpLowering : public ::mlir::ConversionPattern {
+    explicit TensorCreateOpLowering(::mlir::MLIRContext *ctx)
+        : ConversionPattern(TensorCreateOp::getOperationName(), 1, ctx) {}
+
+    ::mlir::LogicalResult
+    matchAndRewrite(::mlir::Operation *op, ArrayRef<::mlir::Value> operands,
+                   ::mlir::ConversionPatternRewriter &rewriter) const override {
+        auto createOp = cast<TensorCreateOp>(op);
+        auto loc = op->getLoc();
+        
+        // 获取输入矩阵的维度
+        auto shape = createOp.getShape();
+        
+        // 分配结果矩阵内存
+        auto resultSize = rewriter.create<::mlir::LLVM::ConstantOp>(
+            loc, rewriter.getI64Type(), shape[0] * shape[1] * sizeof(double));
+            
+        return success();
+    }
+};
+
+struct TensorMatMulOpLowering : public ::mlir::ConversionPattern {
+    explicit TensorMatMulOpLowering(::mlir::MLIRContext *ctx)
+        : ConversionPattern(TensorMatMulOp::getOperationName(), 1, ctx) {}
+        
+    ::mlir::LogicalResult
+    matchAndRewrite(::mlir::Operation *op, ArrayRef<::mlir::Value> operands,
+                   ::mlir::ConversionPatternRewriter &rewriter) const override {
+        auto matmulOp = cast<TensorMatMulOp>(op);
+        auto loc = op->getLoc();
+        
+        // 获取输入矩阵的维度
+        auto lhsType = matmulOp.getOperand(0).getType().cast<TensorType>();
+        auto rhsType = matmulOp.getOperand(1).getType().cast<TensorType>();
+        
+        auto m = lhsType.getShape()[0];
+        auto k = lhsType.getShape()[1];
+        auto n = rhsType.getShape()[1];
+        
+        // 分配结果矩阵内存
+        auto resultSize = rewriter.create<::mlir::LLVM::ConstantOp>(
+            loc, rewriter.getI64Type(), m * n * sizeof(double));
+            
+        return success();
+    }
+};
+
 void populateBoasToLLVMConversionPatterns(BoasToLLVMTypeConverter &typeConverter,
                                          RewritePatternSet &patterns) {
     patterns.add<ListCreateOpLowering, ListAppendOpLowering, 
-                ListGetOpLowering, PrintOpLowering>(patterns.getContext());
+                ListGetOpLowering, PrintOpLowering,
+                TensorCreateOpLowering, TensorMatMulOpLowering>(patterns.getContext());
 }
 
 struct ConvertBoasToLLVMPass

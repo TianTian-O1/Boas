@@ -283,6 +283,139 @@ struct ListGetOpLowering : public ::mlir::ConversionPattern {
     }
 };
 
+struct TensorCreateOpLowering : public ::mlir::ConversionPattern {
+    explicit TensorCreateOpLowering(::mlir::MLIRContext *ctx)
+        : ConversionPattern(TensorCreateOp::getOperationName(), 1, ctx) {}
+        
+    ::mlir::LogicalResult
+    matchAndRewrite(::mlir::Operation *op, ArrayRef<::mlir::Value> operands,
+                   ::mlir::ConversionPatternRewriter &rewriter) const override {
+        auto createOp = cast<TensorCreateOp>(op);
+        auto loc = op->getLoc();
+        
+        // 获取tensor的shape
+        auto shape = createOp->getAttrOfType<::mlir::ArrayAttr>("shape");
+        int64_t size = 1;
+        for (auto dim : shape) {
+            size *= dim.cast<::mlir::IntegerAttr>().getInt();
+        }
+        
+        // 分配内存
+        auto mallocSize = rewriter.create<::mlir::LLVM::ConstantOp>(
+            loc, rewriter.getI64Type(), size * sizeof(double));
+            
+        auto mallocRef = ::mlir::FlatSymbolRefAttr::get(rewriter.getContext(), "malloc");
+        auto allocated = rewriter.create<::mlir::LLVM::CallOp>(
+            loc,
+            ::mlir::TypeRange{::mlir::LLVM::LLVMPointerType::get(rewriter.getContext())},
+            mallocRef,
+            ::mlir::ValueRange{mallocSize}).getResult();
+            
+        rewriter.replaceOp(op, allocated);
+        return ::mlir::success();
+    }
+};
+
+struct TensorMatMulOpLowering : public ::mlir::ConversionPattern {
+    explicit TensorMatMulOpLowering(::mlir::MLIRContext *ctx)
+        : ConversionPattern(TensorMatMulOp::getOperationName(), 1, ctx) {}
+        
+    ::mlir::LogicalResult
+    matchAndRewrite(::mlir::Operation *op, ArrayRef<::mlir::Value> operands,
+                   ::mlir::ConversionPatternRewriter &rewriter) const override {
+        auto matmulOp = cast<TensorMatMulOp>(op);
+        auto loc = op->getLoc();
+        
+        // 获取输入矩阵的维度
+        auto lhsType = matmulOp.getOperand(0).getType().cast<TensorType>();
+        auto rhsType = matmulOp.getOperand(1).getType().cast<TensorType>();
+        
+        auto m = lhsType.getShape()[0];
+        auto k = lhsType.getShape()[1];
+        auto n = rhsType.getShape()[1];
+        
+        // 分配结果矩阵内存
+        auto resultSize = rewriter.create<::mlir::LLVM::ConstantOp>(
+            loc, rewriter.getI64Type(), m * n * sizeof(double));
+            
+        auto mallocRef = ::mlir::FlatSymbolRefAttr::get(rewriter.getContext(), "malloc");
+        auto result = rewriter.create<::mlir::LLVM::CallOp>(
+            loc,
+            ::mlir::TypeRange{::mlir::LLVM::LLVMPointerType::get(rewriter.getContext())},
+            mallocRef,
+            ::mlir::ValueRange{resultSize}).getResult();
+            
+        // 创建基本块和循环变量
+        auto *currentBlock = rewriter.getBlock();
+        auto *iLoopHeader = rewriter.createBlock(currentBlock->getParent());
+        auto *iLoopBody = rewriter.createBlock(currentBlock->getParent());
+        auto *jLoopHeader = rewriter.createBlock(currentBlock->getParent());
+        auto *jLoopBody = rewriter.createBlock(currentBlock->getParent());
+        auto *kLoopHeader = rewriter.createBlock(currentBlock->getParent());
+        auto *kLoopBody = rewriter.createBlock(currentBlock->getParent());
+        auto *exitBlock = rewriter.createBlock(currentBlock->getParent());
+        
+        // i循环初始化
+        auto zero = rewriter.create<::mlir::LLVM::ConstantOp>(
+            loc, rewriter.getI64Type(), 0);
+        auto one = rewriter.create<::mlir::LLVM::ConstantOp>(
+            loc, rewriter.getI64Type(), 1);
+        auto mValue = rewriter.create<::mlir::LLVM::ConstantOp>(
+            loc, rewriter.getI64Type(), m);
+            
+        rewriter.create<::mlir::LLVM::BrOp>(loc, iLoopHeader);
+        
+        // i循环头
+        rewriter.setInsertionPointToEnd(iLoopHeader);
+        auto iVar = rewriter.create<::mlir::LLVM::PHIOp>(
+            loc, rewriter.getI64Type(), 
+            ::mlir::ValueRange{zero, rewriter.create<::mlir::LLVM::AddOp>(
+                loc, rewriter.getI64Type(), iVar, one)});
+        auto iCond = rewriter.create<::mlir::LLVM::ICmpOp>(
+            loc, ::mlir::LLVM::ICmpPredicate::slt, iVar, mValue);
+        rewriter.create<::mlir::LLVM::CondBrOp>(
+            loc, iCond, iLoopBody, exitBlock);
+            
+        // i循环体 (类似地实现j和k循环)
+        rewriter.setInsertionPointToEnd(iLoopBody);
+        // ... 实现j循环和k循环的逻辑
+        
+        // 矩阵乘法核心计算
+        auto aIndex = rewriter.create<::mlir::LLVM::MulOp>(
+            loc, iVar, rewriter.create<::mlir::LLVM::ConstantOp>(
+                loc, rewriter.getI64Type(), k));
+        
+        // 计算B[p,j]的地址
+        auto bIndex = rewriter.create<::mlir::LLVM::MulOp>(
+            loc, kVar, rewriter.create<::mlir::LLVM::ConstantOp>(
+                loc, rewriter.getI64Type(), n));
+                
+        auto aElem = rewriter.create<::mlir::LLVM::LoadOp>(
+            loc, rewriter.getF64Type(), 
+            matmulOp.getOperand(0), aIndex);
+        auto bElem = rewriter.create<::mlir::LLVM::LoadOp>(
+            loc, rewriter.getF64Type(),
+            matmulOp.getOperand(1), bIndex);
+                
+        // 计算乘积并累加
+        auto prod = rewriter.create<::mlir::LLVM::FMulOp>(
+            loc, aElem, bElem);
+        sum = rewriter.create<::mlir::LLVM::FAddOp>(loc, sum, prod);
+        
+        // 计算结果矩阵C[i,j]的地址
+        auto cIndex = rewriter.create<::mlir::LLVM::MulOp>(
+            loc, iVar, rewriter.create<::mlir::LLVM::ConstantOp>(
+                loc, rewriter.getI64Type(), n));
+        cIndex = rewriter.create<::mlir::LLVM::AddOp>(loc, cIndex, jValue);
+                
+        // 存储结果
+        rewriter.create<::mlir::LLVM::StoreOp>(loc, sum, result, cIndex);
+        
+        rewriter.replaceOp(op, result);
+        return ::mlir::success();
+    }
+};
+
 void populateBoasToLLVMConversionPatterns(BoasToLLVMTypeConverter &typeConverter,
                                          ::mlir::RewritePatternSet &patterns) {
     patterns.add<ListCreateOpLowering,
@@ -290,7 +423,9 @@ void populateBoasToLLVMConversionPatterns(BoasToLLVMTypeConverter &typeConverter
                 ListNestedCreateOpLowering,
                 ListGetOpLowering,
                 NumberConstantOpLowering,
-                PrintOpLowering>(patterns.getContext());
+                PrintOpLowering,
+                TensorCreateOpLowering,
+                TensorMatMulOpLowering>(patterns.getContext());
 }
 
 struct ConvertBoasToLLVMPass
