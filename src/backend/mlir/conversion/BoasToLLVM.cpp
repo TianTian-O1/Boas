@@ -3,10 +3,12 @@
 #include "boas/backend/mlir/NumberOps.h"
 #include "boas/backend/mlir/BoasDialect.h"
 #include "boas/backend/mlir/PrintOps.h"
+#include "boas/backend/mlir/TensorOps.h"
 #include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Support/LogicalResult.h"
+#include "llvm/ADT/ArrayRef.h"
 
 namespace boas {
 namespace mlir {
@@ -206,14 +208,22 @@ struct ListNestedCreateOpLowering : public ::mlir::ConversionPattern {
             
         // Store initial values
         auto dataPtr = rewriter.create<::mlir::LLVM::GEPOp>(
-            loc, elementTy, structTy, allocated, 
-            ::mlir::ValueRange{zero, zero});
+            loc,
+            elementTy,
+            structTy,
+            allocated,
+            ::mlir::ValueRange{zero, zero},
+            false);
         rewriter.create<::mlir::LLVM::StoreOp>(loc, nullPtr, dataPtr);
         
         auto sizePtr = rewriter.create<::mlir::LLVM::GEPOp>(
-            loc, rewriter.getI64Type(), structTy, allocated,
+            loc,
+            rewriter.getI64Type(),
+            structTy,
+            allocated,
             ::mlir::ValueRange{zero, rewriter.create<::mlir::LLVM::ConstantOp>(
-                loc, rewriter.getI64Type(), 1)});
+                loc, rewriter.getI64Type(), 1)},
+            false);
         rewriter.create<::mlir::LLVM::StoreOp>(loc, zero, sizePtr);
             
         rewriter.replaceOp(op, allocated);
@@ -231,22 +241,22 @@ struct ListGetOpLowering : public ::mlir::ConversionPattern {
         auto getOp = ::mlir::cast<ListGetOp>(op);
         auto loc = op->getLoc();
         
-        // 获取列表和索引
+        // Get list and index
         auto list = getOp.getList();
         auto index = getOp.getIndex();
         
-        // 获取列表结构体类型
+        // Get list struct type
         auto elementTy = ::mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
         auto structTy = ::mlir::LLVM::LLVMStructType::getLiteral(
             rewriter.getContext(),
             {elementTy, rewriter.getI64Type()}  // data pointer and size
         );
         
-        // 创建GEP操作来访问数据指针
+        // Create GEP operation to access data pointer
         auto zero = rewriter.create<::mlir::LLVM::ConstantOp>(
             loc, rewriter.getI64Type(), 0);
             
-        // 访问结构体中的数据指针字段
+        // Access data pointer field in struct
         auto dataPtr = rewriter.create<::mlir::LLVM::GEPOp>(
             loc,
             elementTy,
@@ -255,28 +265,28 @@ struct ListGetOpLowering : public ::mlir::ConversionPattern {
             ::mlir::ValueRange{zero, zero},
             false);  // inbounds flag
             
-        // 加载数据指针
+        // Load data pointer
         auto data = rewriter.create<::mlir::LLVM::LoadOp>(
             loc,
-            elementTy,  // 结果类型
-            dataPtr,    // 要加载的地址
-            0);        // 对齐值
+            elementTy,
+            dataPtr,
+            0);
             
-        // 使用索引访问元素
+        // Use index to access element
         auto element = rewriter.create<::mlir::LLVM::GEPOp>(
             loc,
-            rewriter.getI64Type(),  // 结果类型
-            rewriter.getI64Type(),  // 元素类型
-            data,                   // 基址
-            ::mlir::ValueRange{index},  // 索引
-            false);                 // inbounds flag
+            rewriter.getI64Type(),
+            rewriter.getI64Type(),
+            data,
+            ::mlir::ValueRange{index},
+            false);
             
-        // 加载元素值
+        // Load element value
         auto result = rewriter.create<::mlir::LLVM::LoadOp>(
             loc,
-            rewriter.getI64Type(),  // 结果类型
-            element,                // 要加载的地址
-            0);                     // 对齐值
+            rewriter.getI64Type(),
+            element,
+            0);
             
         rewriter.replaceOp(op, result.getResult());
         return ::mlir::success();
@@ -285,31 +295,27 @@ struct ListGetOpLowering : public ::mlir::ConversionPattern {
 
 struct TensorCreateOpLowering : public ::mlir::ConversionPattern {
     explicit TensorCreateOpLowering(::mlir::MLIRContext *ctx)
-        : ConversionPattern(TensorCreateOp::getOperationName(), 1, ctx) {}
-        
+        : ConversionPattern(boas::mlir::TensorCreateOp::getOperationName(), 1, ctx) {}
+
     ::mlir::LogicalResult
-    matchAndRewrite(::mlir::Operation *op, ArrayRef<::mlir::Value> operands,
+    matchAndRewrite(::mlir::Operation *op, ::llvm::ArrayRef<::mlir::Value> operands,
                    ::mlir::ConversionPatternRewriter &rewriter) const override {
-        auto createOp = cast<TensorCreateOp>(op);
+        auto createOp = ::llvm::cast<boas::mlir::TensorCreateOp>(op);
         auto loc = op->getLoc();
         
-        // 获取tensor的shape
-        auto shape = createOp->getAttrOfType<::mlir::ArrayAttr>("shape");
-        int64_t size = 1;
-        for (auto dim : shape) {
-            size *= dim.cast<::mlir::IntegerAttr>().getInt();
-        }
+        // Get tensor shape
+        auto shape = createOp.getShape();
         
-        // 分配内存
-        auto mallocSize = rewriter.create<::mlir::LLVM::ConstantOp>(
-            loc, rewriter.getI64Type(), size * sizeof(double));
+        // Allocate memory
+        auto resultSize = rewriter.create<::mlir::LLVM::ConstantOp>(
+            loc, rewriter.getI64Type(), shape[0] * shape[1] * sizeof(double));
             
         auto mallocRef = ::mlir::FlatSymbolRefAttr::get(rewriter.getContext(), "malloc");
         auto allocated = rewriter.create<::mlir::LLVM::CallOp>(
             loc,
             ::mlir::TypeRange{::mlir::LLVM::LLVMPointerType::get(rewriter.getContext())},
             mallocRef,
-            ::mlir::ValueRange{mallocSize}).getResult();
+            ::mlir::ValueRange{resultSize}).getResult();
             
         rewriter.replaceOp(op, allocated);
         return ::mlir::success();
@@ -318,23 +324,34 @@ struct TensorCreateOpLowering : public ::mlir::ConversionPattern {
 
 struct TensorMatMulOpLowering : public ::mlir::ConversionPattern {
     explicit TensorMatMulOpLowering(::mlir::MLIRContext *ctx)
-        : ConversionPattern(TensorMatMulOp::getOperationName(), 1, ctx) {}
+        : ConversionPattern(boas::mlir::TensorMatMulOp::getOperationName(), 1, ctx) {}
         
     ::mlir::LogicalResult
-    matchAndRewrite(::mlir::Operation *op, ArrayRef<::mlir::Value> operands,
+    matchAndRewrite(::mlir::Operation *op, ::llvm::ArrayRef<::mlir::Value> operands,
                    ::mlir::ConversionPatternRewriter &rewriter) const override {
-        auto matmulOp = cast<TensorMatMulOp>(op);
+        auto matmulOp = ::llvm::cast<boas::mlir::TensorMatMulOp>(op);
         auto loc = op->getLoc();
         
-        // 获取输入矩阵的维度
-        auto lhsType = matmulOp.getOperand(0).getType().cast<TensorType>();
-        auto rhsType = matmulOp.getOperand(1).getType().cast<TensorType>();
+        // Get input matrix dimensions
+        auto lhsType = matmulOp.getOperand(0).getType().dyn_cast<::mlir::ShapedType>();
+        auto rhsType = matmulOp.getOperand(1).getType().dyn_cast<::mlir::ShapedType>();
         
-        auto m = lhsType.getShape()[0];
-        auto k = lhsType.getShape()[1];
-        auto n = rhsType.getShape()[1];
+        if (!lhsType || !rhsType) {
+            return ::mlir::failure();
+        }
         
-        // 分配结果矩阵内存
+        auto lhsShape = lhsType.getShape();
+        auto rhsShape = rhsType.getShape();
+        
+        if (lhsShape.size() != 2 || rhsShape.size() != 2) {
+            return ::mlir::failure();
+        }
+        
+        auto m = lhsShape[0];
+        auto k = lhsShape[1];
+        auto n = rhsShape[1];
+        
+        // Allocate result matrix
         auto resultSize = rewriter.create<::mlir::LLVM::ConstantOp>(
             loc, rewriter.getI64Type(), m * n * sizeof(double));
             
@@ -344,72 +361,58 @@ struct TensorMatMulOpLowering : public ::mlir::ConversionPattern {
             ::mlir::TypeRange{::mlir::LLVM::LLVMPointerType::get(rewriter.getContext())},
             mallocRef,
             ::mlir::ValueRange{resultSize}).getResult();
-            
-        // 创建基本块和循环变量
-        auto *currentBlock = rewriter.getBlock();
-        auto *iLoopHeader = rewriter.createBlock(currentBlock->getParent());
-        auto *iLoopBody = rewriter.createBlock(currentBlock->getParent());
-        auto *jLoopHeader = rewriter.createBlock(currentBlock->getParent());
-        auto *jLoopBody = rewriter.createBlock(currentBlock->getParent());
-        auto *kLoopHeader = rewriter.createBlock(currentBlock->getParent());
-        auto *kLoopBody = rewriter.createBlock(currentBlock->getParent());
-        auto *exitBlock = rewriter.createBlock(currentBlock->getParent());
-        
-        // i循环初始化
+
+        // Initialize result matrix with zeros
         auto zero = rewriter.create<::mlir::LLVM::ConstantOp>(
-            loc, rewriter.getI64Type(), 0);
-        auto one = rewriter.create<::mlir::LLVM::ConstantOp>(
-            loc, rewriter.getI64Type(), 1);
-        auto mValue = rewriter.create<::mlir::LLVM::ConstantOp>(
-            loc, rewriter.getI64Type(), m);
-            
-        rewriter.create<::mlir::LLVM::BrOp>(loc, iLoopHeader);
-        
-        // i循环头
-        rewriter.setInsertionPointToEnd(iLoopHeader);
-        auto iVar = rewriter.create<::mlir::LLVM::PHIOp>(
-            loc, rewriter.getI64Type(), 
-            ::mlir::ValueRange{zero, rewriter.create<::mlir::LLVM::AddOp>(
-                loc, rewriter.getI64Type(), iVar, one)});
-        auto iCond = rewriter.create<::mlir::LLVM::ICmpOp>(
-            loc, ::mlir::LLVM::ICmpPredicate::slt, iVar, mValue);
-        rewriter.create<::mlir::LLVM::CondBrOp>(
-            loc, iCond, iLoopBody, exitBlock);
-            
-        // i循环体 (类似地实现j和k循环)
-        rewriter.setInsertionPointToEnd(iLoopBody);
-        // ... 实现j循环和k循环的逻辑
-        
-        // 矩阵乘法核心计算
-        auto aIndex = rewriter.create<::mlir::LLVM::MulOp>(
-            loc, iVar, rewriter.create<::mlir::LLVM::ConstantOp>(
-                loc, rewriter.getI64Type(), k));
-        
-        // 计算B[p,j]的地址
-        auto bIndex = rewriter.create<::mlir::LLVM::MulOp>(
-            loc, kVar, rewriter.create<::mlir::LLVM::ConstantOp>(
-                loc, rewriter.getI64Type(), n));
+            loc, rewriter.getF64Type(), 0.0);
+
+        // Create loops for matrix multiplication
+        for (int64_t i = 0; i < m; i++) {
+            for (int64_t j = 0; j < n; j++) {
+                auto idx_res = i * n + j;
+                auto resPtr = rewriter.create<::mlir::LLVM::GEPOp>(
+                    loc,
+                    ::mlir::LLVM::LLVMPointerType::get(rewriter.getContext()),
+                    rewriter.getF64Type(),
+                    result,
+                    ::mlir::ValueRange{rewriter.create<::mlir::LLVM::ConstantOp>(
+                        loc, rewriter.getI64Type(), idx_res)},
+                    false);
+                        
+                rewriter.create<::mlir::LLVM::StoreOp>(loc, zero, resPtr);
                 
-        auto aElem = rewriter.create<::mlir::LLVM::LoadOp>(
-            loc, rewriter.getF64Type(), 
-            matmulOp.getOperand(0), aIndex);
-        auto bElem = rewriter.create<::mlir::LLVM::LoadOp>(
-            loc, rewriter.getF64Type(),
-            matmulOp.getOperand(1), bIndex);
-                
-        // 计算乘积并累加
-        auto prod = rewriter.create<::mlir::LLVM::FMulOp>(
-            loc, aElem, bElem);
-        sum = rewriter.create<::mlir::LLVM::FAddOp>(loc, sum, prod);
-        
-        // 计算结果矩阵C[i,j]的地址
-        auto cIndex = rewriter.create<::mlir::LLVM::MulOp>(
-            loc, iVar, rewriter.create<::mlir::LLVM::ConstantOp>(
-                loc, rewriter.getI64Type(), n));
-        cIndex = rewriter.create<::mlir::LLVM::AddOp>(loc, cIndex, jValue);
-                
-        // 存储结果
-        rewriter.create<::mlir::LLVM::StoreOp>(loc, sum, result, cIndex);
+                for (int64_t p = 0; p < k; p++) {
+                    auto idx1 = i * k + p;
+                    auto idx2 = p * n + j;
+                    
+                    auto lhsPtr = rewriter.create<::mlir::LLVM::GEPOp>(
+                        loc,
+                        ::mlir::LLVM::LLVMPointerType::get(rewriter.getContext()),
+                        rewriter.getF64Type(),
+                        matmulOp.getOperand(0),
+                        ::mlir::ValueRange{rewriter.create<::mlir::LLVM::ConstantOp>(
+                            loc, rewriter.getI64Type(), idx1)},
+                        false);
+                            
+                    auto rhsPtr = rewriter.create<::mlir::LLVM::GEPOp>(
+                        loc,
+                        ::mlir::LLVM::LLVMPointerType::get(rewriter.getContext()),
+                        rewriter.getF64Type(),
+                        matmulOp.getOperand(1),
+                        ::mlir::ValueRange{rewriter.create<::mlir::LLVM::ConstantOp>(
+                            loc, rewriter.getI64Type(), idx2)},
+                        false);
+                            
+                    auto lhsVal = rewriter.create<::mlir::LLVM::LoadOp>(loc, rewriter.getF64Type(), lhsPtr);
+                    auto rhsVal = rewriter.create<::mlir::LLVM::LoadOp>(loc, rewriter.getF64Type(), rhsPtr);
+                    auto prod = rewriter.create<::mlir::LLVM::FMulOp>(loc, lhsVal, rhsVal);
+                    
+                    auto currVal = rewriter.create<::mlir::LLVM::LoadOp>(loc, rewriter.getF64Type(), resPtr);
+                    auto sum = rewriter.create<::mlir::LLVM::FAddOp>(loc, currVal, prod);
+                    rewriter.create<::mlir::LLVM::StoreOp>(loc, sum, resPtr);
+                }
+            }
+        }
         
         rewriter.replaceOp(op, result);
         return ::mlir::success();

@@ -5,6 +5,7 @@
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "boas/backend/mlir/TensorTypes.h"
+#include "llvm/ADT/ArrayRef.h"
 
 namespace boas {
 namespace mlir {
@@ -16,11 +17,21 @@ public:
     using Op::Op;
     
     static void build(::mlir::OpBuilder &builder, ::mlir::OperationState &state,
-                     ::mlir::Type elementType, ArrayRef<int64_t> shape);
+                     ::mlir::Type elementType, ::llvm::ArrayRef<int64_t> shape);
                      
     ::mlir::Value getResult() { return this->getOperation()->getResult(0); }
     
     static ::llvm::StringRef getOperationName() { return "boas.tensor.create"; }
+
+    static ::llvm::ArrayRef<::llvm::StringRef> getAttributeNames() { 
+        static ::llvm::StringRef names[] = {"shape"};
+        return ::llvm::ArrayRef<::llvm::StringRef>(names);
+    }
+
+    ::llvm::ArrayRef<int64_t> getShape() {
+        auto shapeAttr = this->getOperation()->getAttrOfType<::mlir::DenseI64ArrayAttr>("shape");
+        return shapeAttr.asArrayRef();
+    }
 };
 
 class TensorMatMulOp : public ::mlir::Op<TensorMatMulOp,
@@ -35,6 +46,10 @@ public:
     ::mlir::Value getResult() { return this->getOperation()->getResult(0); }
     
     static ::llvm::StringRef getOperationName() { return "boas.tensor.matmul"; }
+
+    static ::llvm::ArrayRef<::llvm::StringRef> getAttributeNames() {
+        return {};
+    }
 };
 
 } // namespace mlir
