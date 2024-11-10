@@ -1,51 +1,32 @@
-cmake_minimum_required(VERSION 3.13.4)
-project(boas LANGUAGES CXX C)
+cmake_minimum_required(VERSION 3.10)
+project(boas-lang)
 
+# Set policy for Python modules
+cmake_policy(SET CMP0148 NEW)
+
+# Use newer FindPython module
+find_package(Python COMPONENTS Interpreter Development REQUIRED)
+
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -no-pie")
 
-find_package(MLIR REQUIRED CONFIG)
+# Python configuration
+include_directories(${Python_INCLUDE_DIRS})
+link_directories(${Python_LIBRARY_DIRS})
+
+# LLVM configuration
 find_package(LLVM REQUIRED CONFIG)
-
-message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
-message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-
-set(LLVM_RUNTIME_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/bin)
-set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/lib)
-
-list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
-list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
-
-include(AddLLVM)
-include(AddMLIR)
-include(HandleLLVMOptions)
-
-# 添加这些行来正确设置 LLVM 库
-llvm_map_components_to_libnames(llvm_libs
-  Core
-  Support
-  Analysis
-  IRReader
-  ExecutionEngine
-  RuntimeDyld
-  Target
-  X86CodeGen
-  X86AsmParser
-  X86Desc
-  X86Info
-  MC
-  MCParser
-  MCDisassembler
-)
-
 include_directories(${LLVM_INCLUDE_DIRS})
-include_directories(${MLIR_INCLUDE_DIRS})
-include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${PROJECT_BINARY_DIR}/include)
-
-link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
 
+# MLIR configuration
+find_package(MLIR REQUIRED CONFIG)
+include_directories(${MLIR_INCLUDE_DIRS})
+
+# Add subdirectories
 add_subdirectory(src)
+add_subdirectory(tests)
+
+# Enable testing
+enable_testing()

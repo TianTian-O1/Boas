@@ -1,30 +1,31 @@
-add_library(BoasLib
-  frontend/Lexer.cpp
-  parser/Parser.cpp
-  mlir/MLIRGen.cpp
-  analyzer/SemanticAnalyzer.cpp
-  llvm/LLVMGen.cpp
+add_library(boas
+    ast/ast.cpp
+    ast/list_ast.cpp
+    ast/number_ast.cpp
+    frontend/python_frontend.cpp
+    backend/mlir/BoasDialect.cpp
+    backend/mlir/MLIRGen.cpp
+    backend/mlir/Conversion/BoasToLLVM.cpp
 )
 
-target_include_directories(BoasLib PUBLIC
-  ${CMAKE_SOURCE_DIR}/include
-  ${LLVM_INCLUDE_DIRS}
+target_include_directories(boas
+    PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
+    ${MLIR_INCLUDE_DIRS}
+    ${LLVM_INCLUDE_DIRS}
+    ${Python_INCLUDE_DIRS}
 )
 
-set(LIBS
-  MLIRAnalysis
-  MLIRArithDialect
-  MLIRDialect
-  MLIRIR
-  MLIRParser
-  MLIRPass
-  MLIRSupport
-  MLIRTransforms
-  MLIRFuncDialect
-  ${llvm_libs}
+target_link_libraries(boas
+    PUBLIC
+    MLIRIR
+    MLIRSupport
+    MLIRParser
+    MLIRPass
+    MLIRTransforms
+    MLIRLLVMDialect
+    MLIRLLVMToLLVMIRTranslation
+    MLIRLLVMIRTransforms
+    Python::Python
 )
-
-target_link_libraries(BoasLib PUBLIC ${LIBS} ${LLVM_AVAILABLE_LIBS})
-
-add_executable(boas main.cpp)
-target_link_libraries(boas PRIVATE BoasLib ${LIBS} ${LLVM_AVAILABLE_LIBS})
