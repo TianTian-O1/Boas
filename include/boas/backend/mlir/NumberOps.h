@@ -1,43 +1,47 @@
-#ifndef BOAS_NUMBER_OPS_H
-#define BOAS_NUMBER_OPS_H
+#ifndef BOAS_MLIR_NUMBER_OPS_H
+#define BOAS_MLIR_NUMBER_OPS_H
 
-#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpDefinition.h"
-#include "mlir/Interfaces/InferTypeOpInterface.h"
+#include "mlir/Interfaces/SideEffectInterfaces.h"
 
 namespace boas {
 namespace mlir {
 
 class NumberConstantOp : public ::mlir::Op<NumberConstantOp,
-                                          ::mlir::OpTrait::OneResult,
-                                          ::mlir::OpTrait::ZeroSuccessors> {
+                                         ::mlir::OpTrait::ZeroOperands,
+                                         ::mlir::OpTrait::OneResult,
+                                         ::mlir::OpTrait::ZeroSuccessors> {
 public:
     using Op::Op;
     
-    static void build(::mlir::OpBuilder &builder, ::mlir::OperationState &state,
-                     int64_t value) {
-        auto type = builder.getI64Type();
-        auto attr = builder.getI64IntegerAttr(value);
-        state.addAttribute("value", attr);
-        state.addTypes(type);
+    static ::llvm::StringRef getOperationName() { return "boas.number.constant"; }
+    
+    static ::llvm::ArrayRef<::llvm::StringRef> getAttributeNames() { 
+        static ::llvm::StringRef attrNames[] = {"value"};
+        return ::llvm::ArrayRef<::llvm::StringRef>(attrNames);
     }
     
-    int64_t getValue() {
-        return (*this)->getAttrOfType<::mlir::IntegerAttr>("value").getInt();
+    static void build(::mlir::OpBuilder &builder, ::mlir::OperationState &state,
+                     double value) {
+        state.addAttribute("value", builder.getF64FloatAttr(value));
+        state.addTypes(builder.getF64Type());
+    }
+    
+    double getValue() {
+        return (*this)->getAttrOfType<::mlir::FloatAttr>("value").getValueAsDouble();
     }
     
     ::mlir::Value getResult() { return this->getOperation()->getResult(0); }
     
-    static ::llvm::StringRef getOperationName() { return "boas.constant"; }
-    static ::mlir::LogicalResult verify() { return ::mlir::success(); }
-    
-    static ::llvm::ArrayRef<::llvm::StringRef> getAttributeNames() {
-        static ::llvm::StringRef names[] = {"value"};
-        return ::llvm::ArrayRef<::llvm::StringRef>(names);
+    ::mlir::LogicalResult verify() {
+        if (!(*this)->hasAttr("value"))
+            return emitOpError("requires 'value' attribute");
+        return ::mlir::success();
     }
 };
 
 } // namespace mlir
 } // namespace boas
 
-#endif // BOAS_NUMBER_OPS_H
+#endif // BOAS_MLIR_NUMBER_OPS_H

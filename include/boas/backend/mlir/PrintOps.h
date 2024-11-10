@@ -1,10 +1,10 @@
 #ifndef BOAS_MLIR_PRINT_OPS_H
 #define BOAS_MLIR_PRINT_OPS_H
 
-#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpDefinition.h"
-#include "mlir/Interfaces/InferTypeOpInterface.h"
-#include "mlir/Interfaces/SideEffectInterfaces.h"
+#include "boas/backend/mlir/NumberOps.h"
+#include "boas/backend/mlir/ListOps.h"
 
 namespace boas {
 namespace mlir {
@@ -93,8 +93,9 @@ public:
             
             if (auto nestedListOp = llvm::dyn_cast_or_null<ListCreateOp>(
                 operand.getDefiningOp())) {
-                // 递归打印嵌套列表
-                printList(nestedListOp);
+                if (failed(printList(nestedListOp))) {
+                    return ::mlir::failure();
+                }
             } else if (auto constOp = llvm::dyn_cast_or_null<NumberConstantOp>(
                 operand.getDefiningOp())) {
                 llvm::outs() << constOp.getValue();

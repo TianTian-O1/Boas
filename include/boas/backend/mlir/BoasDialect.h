@@ -11,8 +11,6 @@ class BoasDialect : public ::mlir::Dialect {
 public:
     explicit BoasDialect(::mlir::MLIRContext *context);
     static ::llvm::StringRef getDialectNamespace() { return "boas"; }
-
-    void initialize();
 };
 
 } // namespace mlir

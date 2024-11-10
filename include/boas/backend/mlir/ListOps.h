@@ -62,6 +62,7 @@ public:
     }
     
     static ::llvm::StringRef getOperationName() { return "boas.list.comprehension"; }
+    static ::llvm::ArrayRef<::llvm::StringRef> getAttributeNames() { return {}; }
 };
 
 class ListNestedCreateOp : public ::mlir::Op<ListNestedCreateOp,

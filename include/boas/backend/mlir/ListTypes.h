@@ -3,27 +3,12 @@
 
 #include "mlir/IR/Types.h"
 #include "mlir/IR/TypeSupport.h"
-#include "mlir/IR/Attributes.h"
-#include "mlir/IR/DialectImplementation.h"
 
 namespace boas {
 namespace mlir {
 
-namespace detail {
-struct ListTypeStorage : public ::mlir::TypeStorage {
-    using KeyTy = std::tuple<>;
-    
-    static ListTypeStorage *construct(::mlir::TypeStorageAllocator &allocator,
-                                    const KeyTy &) {
-        return new (allocator.allocate<ListTypeStorage>()) ListTypeStorage();
-    }
-    
-    bool operator==(const KeyTy &) const { return true; }
-};
-} // namespace detail
-
 class ListType : public ::mlir::Type::TypeBase<ListType, ::mlir::Type,
-                                             detail::ListTypeStorage> {
+                                             ::mlir::TypeStorage> {
 public:
     using Base::Base;
     
@@ -33,7 +18,7 @@ public:
         return Base::get(context);
     }
     
-    static ::mlir::LogicalResult verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError) {
+    static ::mlir::LogicalResult verify(::llvm::function_ref<::mlir::InFlightDiagnostic()>) {
         return ::mlir::success();
     }
     
