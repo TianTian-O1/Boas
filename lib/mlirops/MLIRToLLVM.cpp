@@ -21,11 +21,12 @@ std::string MLIRToLLVM::convertToLLVM(const std::string& mlirInput) {
     builder.SetInsertPoint(entry);
 
     // Create matrices A and B with shapes
-    std::vector<float> valuesA = {1.0f, 2.0f};  // [1, 2]
-    std::vector<float> valuesB = {5.0f, 7.0f};  // [5]
-                                                // [7]
-    std::vector<int> shapeA = {1, 2};
-    std::vector<int> shapeB = {2, 1};
+    std::vector<float> valuesA = {1.0f, 2.0f, 3.0f, 4.0f};  // [[1, 2],
+                                                            //  [3, 4]]
+    std::vector<float> valuesB = {5.0f, 6.0f, 7.0f, 8.0f};  // [[5, 6],
+                                                            //  [7, 8]]
+    std::vector<int> shapeA = {2, 2};
+    std::vector<int> shapeB = {2, 2};
 
     llvm::Value* matA = createMatrix(builder, module, valuesA, shapeA);
     llvm::Value* matB = createMatrix(builder, module, valuesB, shapeB);
@@ -33,11 +34,10 @@ std::string MLIRToLLVM::convertToLLVM(const std::string& mlirInput) {
     // Perform matrix multiplication
     llvm::Value* matC = createMatrixMultiplication(builder, matA, matB, shapeA, shapeB);
 
+    // Calculate the shape of the result matrix (m,k) × (k,n) -> (m,n)
+    std::vector<int> shapeC = {shapeA[0], shapeB[1]};  // Result shape is (2,2)
+
     // Print result
-    std::vector<int> shapeC = {
-        shapeA[0] == 1 ? shapeB[0] : shapeA[0],
-        shapeB[1] == 1 ? shapeA[1] : shapeB[1]
-    };
     createPrintMatrix(builder, module, matC, shapeC);
 
     // Return 0
@@ -73,42 +73,28 @@ llvm::Value* MLIRToLLVM::createMatrixMultiplication(llvm::IRBuilder<>& builder,
                                                    llvm::Value* matB,
                                                    const std::vector<int>& shapeA,
                                                    const std::vector<int>& shapeB) {
-    // 广播后的形状
-    std::vector<int> broadcastedShapeA = {
-        shapeA[0] == 1 ? shapeB[0] : shapeA[0],
-        shapeA[1]
-    };
-    std::vector<int> broadcastedShapeB = {
-        shapeB[0],
-        shapeB[1] == 1 ? shapeA[1] : shapeB[1]
-    };
+    int m = shapeA[0];  // A的行数
+    int k = shapeA[1];  // A的列数 = B的行数
+    int n = shapeB[1];  // B的列数
 
-    // 创建结果矩阵
-    int rows = broadcastedShapeA[0];
-    int cols = broadcastedShapeB[1];
-    llvm::ArrayType* arrayTy = llvm::ArrayType::get(builder.getFloatTy(), rows * cols);
+    // 创建结果矩阵 (m x n)
+    llvm::ArrayType* arrayTy = llvm::ArrayType::get(builder.getFloatTy(), m * n);
     llvm::Value* result = builder.CreateAlloca(arrayTy, nullptr, "result");
 
-    // 实现广播乘法
-    for (int i = 0; i < rows; ++i) {
-        for (int j = 0; j < cols; ++j) {
+    // 实现矩阵乘法
+    for (int i = 0; i < m; ++i) {
+        for (int j = 0; j < n; ++j) {
             llvm::Value* sum = llvm::ConstantFP::get(builder.getFloatTy(), 0.0);
             
-            for (int k = 0; k < shapeA[1]; ++k) {
-                // 获取A矩阵元素（考虑广播）
-                int aRow = i % shapeA[0];
-                int aCol = k;
-                int aIdx = aRow * shapeA[1] + aCol;
-                
-                // 获取B矩阵元素（考虑广播）
-                int bRow = k;
-                int bCol = j % shapeB[1];
-                int bIdx = bRow * shapeB[1] + bCol;
-
-                // 加载元素
+            for (int p = 0; p < k; ++p) {
+                // 获取A矩阵元素
+                int aIdx = i * k + p;
                 llvm::Value* aVal = builder.CreateLoad(builder.getFloatTy(),
                     builder.CreateGEP(arrayTy, matA, 
                         {builder.getInt32(0), builder.getInt32(aIdx)}));
+
+                // 获取B矩阵元素
+                int bIdx = p * n + j;
                 llvm::Value* bVal = builder.CreateLoad(builder.getFloatTy(),
                     builder.CreateGEP(arrayTy, matB,
                         {builder.getInt32(0), builder.getInt32(bIdx)}));
@@ -119,7 +105,7 @@ llvm::Value* MLIRToLLVM::createMatrixMultiplication(llvm::IRBuilder<>& builder,
             }
 
             // 存储结果
-            int resultIdx = i * cols + j;
+            int resultIdx = i * n + j;
             builder.CreateStore(sum, 
                 builder.CreateGEP(arrayTy, result,
                     {builder.getInt32(0), builder.getInt32(resultIdx)}));
@@ -143,17 +129,14 @@ void MLIRToLLVM::createPrintMatrix(llvm::IRBuilder<>& builder,
                                   llvm::Module& module,
                                   llvm::Value* matrix,
                                   const std::vector<int>& shape) {
-    // Create printf function declaration
+    // 创建 printf 函数声明
     llvm::Type* i8Ty = builder.getInt8Ty();
     llvm::Type* i8PtrTy = llvm::PointerType::get(i8Ty, 0);
-    
     llvm::FunctionType* printfType = llvm::FunctionType::get(
-        builder.getInt32Ty(),
-        {i8PtrTy},
-        true);
+        builder.getInt32Ty(), {i8PtrTy}, true);
     llvm::FunctionCallee printfFunc = module.getOrInsertFunction("printf", printfType);
 
-    // Create format string
+    // 创建格式字符串
     std::string formatStr = "Matrix:\n";
     for (int i = 0; i < shape[0]; i++) {
         formatStr += "[";
@@ -166,22 +149,22 @@ void MLIRToLLVM::createPrintMatrix(llvm::IRBuilder<>& builder,
 
     llvm::Value* formatStrVal = builder.CreateGlobalString(formatStr, "format");
 
-    // Load and convert matrix elements
+    // 加载和转换矩阵元素
+    std::vector<llvm::Value*> printArgs = {formatStrVal};
     llvm::ArrayType* arrayTy = llvm::ArrayType::get(builder.getFloatTy(), shape[0] * shape[1]);
-    std::vector<llvm::Value*> elements;
-    for (int i = 0; i < shape[0] * shape[1]; i++) {
-        llvm::Value* idx = builder.getInt32(i);
-        llvm::Value* ptr = builder.CreateGEP(arrayTy, matrix,
-            {builder.getInt32(0), idx});
-        llvm::Value* val = builder.CreateLoad(builder.getFloatTy(), ptr);
-        llvm::Value* doubleVal = builder.CreateFPExt(val, builder.getDoubleTy());
-        elements.push_back(doubleVal);
+    
+    for (int i = 0; i < shape[0]; i++) {
+        for (int j = 0; j < shape[1]; j++) {
+            int idx = i * shape[1] + j;
+            llvm::Value* val = builder.CreateLoad(builder.getFloatTy(),
+                builder.CreateGEP(arrayTy, matrix,
+                    {builder.getInt32(0), builder.getInt32(idx)}));
+            printArgs.push_back(builder.CreateFPExt(val, builder.getDoubleTy()));
+        }
     }
 
-    // Call printf
-    std::vector<llvm::Value*> args = {formatStrVal};
-    args.insert(args.end(), elements.begin(), elements.end());
-    builder.CreateCall(printfFunc, args);
+    // 调用 printf
+    builder.CreateCall(printfFunc, printArgs);
 }
 
 } // namespace matrix
