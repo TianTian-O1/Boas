@@ -1,0 +1,15 @@
+import tensor
+from tensor import matmul
+
+def benchmark(size: int):
+    # 创建随机矩阵
+    A = tensor.random(size, size)
+    B = tensor.random(size, size)
+    
+    # 执行矩阵乘法
+    C = matmul(A, B)
+
+def main():
+    sizes = [64, 128, 256, 512, 1024]
+    for size in sizes:
+        benchmark(size)
