@@ -73,42 +73,75 @@ llvm::Value* MLIRToLLVM::createMatrixMultiplication(llvm::IRBuilder<>& builder,
                                                    llvm::Value* matB,
                                                    const std::vector<int>& shapeA,
                                                    const std::vector<int>& shapeB) {
-    int m = shapeA[0];  // A的行数
-    int k = shapeA[1];  // A的列数 = B的行数
-    int n = shapeB[1];  // B的列数
+    int m = shapeA[0];
+    int k = shapeA[1];
+    int n = shapeB[1];
 
-    // 创建结果矩阵 (m x n)
+    // 创建结果矩阵
     llvm::ArrayType* arrayTy = llvm::ArrayType::get(builder.getFloatTy(), m * n);
     llvm::Value* result = builder.CreateAlloca(arrayTy, nullptr, "result");
 
-    // 实现矩阵乘法
-    for (int i = 0; i < m; ++i) {
-        for (int j = 0; j < n; ++j) {
-            llvm::Value* sum = llvm::ConstantFP::get(builder.getFloatTy(), 0.0);
-            
-            for (int p = 0; p < k; ++p) {
-                // 获取A矩阵元素
-                int aIdx = i * k + p;
-                llvm::Value* aVal = builder.CreateLoad(builder.getFloatTy(),
-                    builder.CreateGEP(arrayTy, matA, 
-                        {builder.getInt32(0), builder.getInt32(aIdx)}));
+    // 定义分块大小
+    const int BLOCK_SIZE = 32;
+    const int VECTOR_SIZE = 4;  // AVX支持4个float并行计算
 
-                // 获取B矩阵元素
-                int bIdx = p * n + j;
-                llvm::Value* bVal = builder.CreateLoad(builder.getFloatTy(),
-                    builder.CreateGEP(arrayTy, matB,
-                        {builder.getInt32(0), builder.getInt32(bIdx)}));
+    // 创建向量类型
+    llvm::VectorType* vectorTy = llvm::VectorType::get(builder.getFloatTy(), VECTOR_SIZE, false);
 
-                // 相乘并累加
-                llvm::Value* prod = builder.CreateFMul(aVal, bVal);
-                sum = builder.CreateFAdd(sum, prod);
+    // 外层循环：按块遍历
+    for (int i = 0; i < m; i += BLOCK_SIZE) {
+        for (int j = 0; j < n; j += BLOCK_SIZE) {
+            for (int p = 0; p < k; p += BLOCK_SIZE) {
+                // 内层循环：在块内计算
+                for (int ii = i; ii < std::min(i + BLOCK_SIZE, m); ii++) {
+                    for (int jj = j; jj < std::min(j + BLOCK_SIZE, n); jj += VECTOR_SIZE) {
+                        // 初始化向量累加器
+                        llvm::Value* sumVec = llvm::Constant::getNullValue(vectorTy);
+
+                        // 向量化内层循环
+                        for (int pp = p; pp < std::min(p + BLOCK_SIZE, k); pp++) {
+                            // 加载A矩阵元素
+                            llvm::Value* aVal = builder.CreateLoad(builder.getFloatTy(),
+                                builder.CreateGEP(arrayTy, matA,
+                                    {builder.getInt32(0),
+                                     builder.getInt32(ii * k + pp)}));
+
+                            // 广播A矩阵元素到向量
+                            llvm::Value* aVec = builder.CreateVectorSplat(VECTOR_SIZE, aVal);
+
+                            // 加载B矩阵向量
+                            std::vector<llvm::Value*> bElements;
+                            for (int v = 0; v < VECTOR_SIZE && jj + v < n; v++) {
+                                bElements.push_back(
+                                    builder.CreateLoad(builder.getFloatTy(),
+                                        builder.CreateGEP(arrayTy, matB,
+                                            {builder.getInt32(0),
+                                             builder.getInt32(pp * n + jj + v)}))
+                                );
+                            }
+                            llvm::Value* bVec = builder.CreateVectorSplat(VECTOR_SIZE, bElements[0]);
+                            for (int v = 1; v < VECTOR_SIZE && jj + v < n; v++) {
+                                bVec = builder.CreateInsertElement(bVec, bElements[v], 
+                                    builder.getInt32(v));
+                            }
+
+                            // 向量乘法和累加
+                            llvm::Value* prodVec = builder.CreateFMul(aVec, bVec);
+                            sumVec = builder.CreateFAdd(sumVec, prodVec);
+                        }
+
+                        // 存储结果向量
+                        for (int v = 0; v < VECTOR_SIZE && jj + v < n; v++) {
+                            llvm::Value* sum = builder.CreateExtractElement(sumVec, 
+                                builder.getInt32(v));
+                            builder.CreateStore(sum,
+                                builder.CreateGEP(arrayTy, result,
+                                    {builder.getInt32(0),
+                                     builder.getInt32(ii * n + jj + v)}));
+                        }
+                    }
+                }
             }
-
-            // 存储结果
-            int resultIdx = i * n + j;
-            builder.CreateStore(sum, 
-                builder.CreateGEP(arrayTy, result,
-                    {builder.getInt32(0), builder.getInt32(resultIdx)}));
         }
     }
 

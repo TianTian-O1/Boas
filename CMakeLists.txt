@@ -69,3 +69,6 @@ target_compile_definitions(test-llvm PRIVATE
     DEBUG_LEVEL=${DEBUG_LEVEL}
 )
 target_link_libraries(test-llvm matrix-lib ${llvm_libs})
+
+find_package(Threads REQUIRED)
+target_link_libraries(matrix-lib PRIVATE Threads::Threads)
