@@ -28,7 +28,10 @@ enum TokenKind {
     tok_print = -19,
     tok_dot = -20,
     tok_return = -21,
-    tok_linalg = -22
+    tok_linalg = -22,
+    
+    EOF_TOKEN = tok_eof,
+    NEWLINE = tok_newline
 };
 
 struct Token {
@@ -40,16 +43,16 @@ struct Token {
 
 class Lexer {
 public:
-    Lexer(std::string input) : input_(input), pos_(0) {}
+    Lexer(std::string input) : input_(input), current_(0) {}
     Token getNextToken();
     
 private:
     std::string input_;
-    size_t pos_;
+    size_t current_;
     
-    bool isAtEnd() const { return pos_ >= input_.length(); }
-    char peek() const { return isAtEnd() ? '\0' : input_[pos_]; }
-    char advance() { return input_[pos_++]; }
+    bool isAtEnd() const { return current_ >= input_.length(); }
+    char peek() const { return isAtEnd() ? '\0' : input_[current_]; }
+    char advance() { return input_[current_++]; }
     Token createToken(TokenKind kind, const std::string& value = "");
     std::string readIdentifier();
     std::string readNumber();

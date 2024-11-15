@@ -14,8 +14,8 @@ Token Lexer::createToken(TokenKind kind, const std::string& value) {
 
 std::string Lexer::readIdentifier() {
     std::string identifier;
-    while (pos_ < input_.length() && (std::isalnum(input_[pos_]) || input_[pos_] == '_')) {
-        identifier += input_[pos_++];
+    while (current_ < input_.length() && (std::isalnum(input_[current_]) || input_[current_] == '_')) {
+        identifier += input_[current_++];
     }
     Debug::logf(DEBUG_LEXER, "Found identifier: %s", identifier.c_str());
     return identifier;
@@ -23,45 +23,48 @@ std::string Lexer::readIdentifier() {
 
 std::string Lexer::readNumber() {
     std::string number;
-    while (pos_ < input_.length() && std::isdigit(input_[pos_])) {
-        number += input_[pos_++];
+    while (current_ < input_.length() && std::isdigit(input_[current_])) {
+        number += input_[current_++];
     }
     Debug::logf(DEBUG_LEXER, "Found number: %s", number.c_str());
     return number;
 }
 
 void Lexer::skipWhitespace() {
-    while (pos_ < input_.length() && std::isspace(input_[pos_])) {
-        if (input_[pos_] == '\n') {
-            pos_++;
-            return;
+    while (current_ < input_.length()) {
+        char c = input_[current_];
+        if (c == ' ' || c == '\t') {
+            current_++;
+        } else if (c == '#') {
+            while (current_ < input_.length() && input_[current_] != '\n') {
+                current_++;
+            }
+            break;
+        } else if (c == '\n') {
+            break;
+        } else {
+            break;
         }
-        pos_++;
     }
 }
 
 Token Lexer::getNextToken() {
-    // Skip whitespace
-    while (pos_ < input_.length() && std::isspace(input_[pos_])) {
-        if (input_[pos_] == '\n') {
-            pos_++;
-            return createToken(tok_newline, "\n");
-        }
-        pos_++;
+    skipWhitespace();
+    
+    if (current_ >= input_.length()) {
+        return Token{tok_eof, ""};
     }
     
-    // Check for EOF
-    if (pos_ >= input_.length()) {
-        return createToken(tok_eof);
+    char c = input_[current_];
+    
+    if (c == '\n') {
+        current_++;
+        return Token{tok_newline, "\n"};
     }
     
-    Debug::logf(DEBUG_LEXER, "Current char: '%c' at position %zu", input_[pos_], pos_);
-    
-    // Handle identifiers and keywords
-    if (std::isalpha(input_[pos_])) {
+    if (std::isalpha(input_[current_])) {
         std::string identifier = readIdentifier();
         
-        // Check for keywords
         if (identifier == "def") return createToken(tok_def, identifier);
         if (identifier == "import") return createToken(tok_import, identifier);
         if (identifier == "from") return createToken(tok_from, identifier);
@@ -74,13 +77,11 @@ Token Lexer::getNextToken() {
         return createToken(tok_identifier, identifier);
     }
     
-    // Handle numbers
-    if (std::isdigit(input_[pos_])) {
+    if (std::isdigit(input_[current_])) {
         return createToken(tok_number, readNumber());
     }
     
-    // Handle single-character tokens
-    char currentChar = input_[pos_++];
+    char currentChar = input_[current_++];
     switch (currentChar) {
         case '=': return createToken(tok_equal, "=");
         case ',': return createToken(tok_comma, ",");
@@ -92,7 +93,6 @@ Token Lexer::getNextToken() {
         case '.': return createToken(tok_dot, ".");
     }
     
-    // Unknown character
     std::string unknown(1, currentChar);
     return createToken(tok_eof, unknown);
 }

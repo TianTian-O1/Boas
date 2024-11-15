@@ -2,10 +2,12 @@
 #include <sstream>
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/Type.h"
+#include <regex>
 
 namespace matrix {
 
-std::string MLIRToLLVM::convertToLLVM(const std::string& mlirInput) {
+std::string MLIRToLLVM::convertToLLVM(const std::vector<std::vector<float>>& matrixA,
+                                     const std::vector<std::vector<float>>& matrixB) {
     llvm::LLVMContext context;
     llvm::Module module("matrix_module", context);
     llvm::IRBuilder<> builder(context);
@@ -20,22 +22,31 @@ std::string MLIRToLLVM::convertToLLVM(const std::string& mlirInput) {
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", mainFunc);
     builder.SetInsertPoint(entry);
 
-    // Create matrices A and B with shapes
-    std::vector<float> valuesA = {1.0f, 2.0f, 3.0f, 4.0f};  // [[1, 2],
-                                                            //  [3, 4]]
-    std::vector<float> valuesB = {5.0f, 6.0f, 7.0f, 8.0f};  // [[5, 6],
-                                                            //  [7, 8]]
-    std::vector<int> shapeA = {2, 2};
-    std::vector<int> shapeB = {2, 2};
+    // Convert input matrices to flat vectors
+    std::vector<float> valuesA;
+    std::vector<float> valuesB;
+    std::vector<int> shapeA = {(int)matrixA.size(), (int)matrixA[0].size()};
+    std::vector<int> shapeB = {(int)matrixB.size(), (int)matrixB[0].size()};
 
+    // Flatten matrix A
+    for (const auto& row : matrixA) {
+        valuesA.insert(valuesA.end(), row.begin(), row.end());
+    }
+
+    // Flatten matrix B
+    for (const auto& row : matrixB) {
+        valuesB.insert(valuesB.end(), row.begin(), row.end());
+    }
+
+    // Create LLVM matrices
     llvm::Value* matA = createMatrix(builder, module, valuesA, shapeA);
     llvm::Value* matB = createMatrix(builder, module, valuesB, shapeB);
 
     // Perform matrix multiplication
     llvm::Value* matC = createMatrixMultiplication(builder, matA, matB, shapeA, shapeB);
 
-    // Calculate the shape of the result matrix (m,k) × (k,n) -> (m,n)
-    std::vector<int> shapeC = {shapeA[0], shapeB[1]};  // Result shape is (2,2)
+    // Calculate result shape
+    std::vector<int> shapeC = {shapeA[0], shapeB[1]};
 
     // Print result
     createPrintMatrix(builder, module, matC, shapeC);
@@ -43,7 +54,7 @@ std::string MLIRToLLVM::convertToLLVM(const std::string& mlirInput) {
     // Return 0
     builder.CreateRet(builder.getInt32(0));
 
-    // Verify and return
+    // Generate output
     std::string output;
     llvm::raw_string_ostream os(output);
     module.print(os, nullptr);
@@ -198,6 +209,72 @@ void MLIRToLLVM::createPrintMatrix(llvm::IRBuilder<>& builder,
 
     // 调用 printf
     builder.CreateCall(printfFunc, printArgs);
+}
+
+/*static*/ std::string MLIRToLLVM::convertToLLVM(const std::string& mlirInput) {
+    std::vector<std::vector<float>> matrixA;
+    std::vector<std::vector<float>> matrixB;
+    
+    // 使用正则表达式提取矩阵值
+    std::regex matrix_pattern("\"tensor\\.from_elements\"\\(\\)\\s*\\(\\{([^}]+)\\}\\)");
+    std::smatch matches;
+    std::string::const_iterator searchStart(mlirInput.cbegin());
+    
+    // 找到第一个矩阵 (A)
+    if (std::regex_search(searchStart, mlirInput.cend(), matches, matrix_pattern)) {
+        std::string elements = matches[1].str();
+        std::stringstream ss(elements);
+        std::vector<float> values;
+        float val;
+        
+        // 解析所有数字
+        while (ss >> val) {
+            values.push_back(val);
+            // 跳过逗号和空格
+            char c;
+            while (ss >> c && (c == ',' || c == ' ' || c == '\n')) {
+                continue;
+            }
+            if (ss.good()) {
+                ss.unget();
+            }
+        }
+        
+        // 转换为2x2矩阵
+        if (values.size() >= 4) {
+            matrixA.push_back({values[0], values[1]});
+            matrixA.push_back({values[2], values[3]});
+        }
+        
+        searchStart = matches.suffix().first;
+    }
+    
+    // 找到第二个矩阵 (B)
+    if (std::regex_search(searchStart, mlirInput.cend(), matches, matrix_pattern)) {
+        std::string elements = matches[1].str();
+        std::stringstream ss(elements);
+        std::vector<float> values;
+        float val;
+        
+        while (ss >> val) {
+            values.push_back(val);
+            char c;
+            while (ss >> c && (c == ',' || c == ' ' || c == '\n')) {
+                continue;
+            }
+            if (ss.good()) {
+                ss.unget();
+            }
+        }
+        
+        if (values.size() >= 4) {
+            matrixB.push_back({values[0], values[1]});
+            matrixB.push_back({values[2], values[3]});
+        }
+    }
+    
+    // 调用矩阵乘法实现
+    return convertToLLVM(matrixA, matrixB);
 }
 
 } // namespace matrix
