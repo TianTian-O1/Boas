@@ -1,13 +1,12 @@
 import tensor
-from tensor import matmul
 
 def main():
     # sdad
-    A = tensor([[0, 0],
-                       [4, 5]])
+    A = tensor([[1, 0],
+                       [0, 1]])
     
-    B = tensor([[2, 2],
-                       [0, 4]])
+    B = tensor([[1, 0],
+                       [0, 1]])
     
     C = tensor.matmul(A, B)
     

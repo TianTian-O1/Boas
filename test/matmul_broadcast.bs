@@ -1,13 +1,13 @@
 import tensor
-from tensor import matmul
 
 def main():
-    # Define matrices with different shapes
-    A = tensor([[1, 2]])  # 1x2 matrix
-    B = tensor([[5],      # 2x1 matrix
-                [7]])
-    
-    # This should broadcast A to [[1, 2], [1, 2]] and B to [[5, 5], [7, 7]]
-    # before multiplication
-    C = matmul(A, B)
+    # Define matrices with correct shapes and elements
+    A = tensor([[3]])  # 1x2 matrix
+    B = tensor([
+        [3, 3],
+        [3, 3]
+    ])  # 2x2 matrix
+
+    # Perform the matrix multiplication
+    C = tensor.matmul(A, B)
     print(C)

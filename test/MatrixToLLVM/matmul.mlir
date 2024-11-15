@@ -1,10 +1,18 @@
-"builtin.module"() ({
-  func.func @test_matmul() {
-    %A = arith.constant dense<[[1.0, 2.0], [3.0, 4.0]]> : tensor<2x2xf64>
-    %B = arith.constant dense<[[5.0, 6.0], [7.0, 8.0]]> : tensor<2x2xf64>
-    
-    // 执行矩阵乘法
-    %C = matrix.matmul %A, %B : tensor<2x2xf64>
-    
-  }
-}) : () -> ()
+module {
+  "builtin.module"() ({
+    "func.func"() ({
+      // Import: tensor
+      func @main() {
+        %A = "tensor.from_elements"() ({
+          3, 3
+        }) {type = tensor<1x2xf64>}
+        %B = "tensor.from_elements"() ({
+          3, 3,
+          3, 3
+        }) {type = tensor<2x2xf64>}
+        %C = "linalg.matmul"(%A, %B) : (tensor<1x2xf64>, tensor<2x2xf64>) -> tensor<1x2xf64>
+        "tensor.print"(%C) : (tensor<1x2xf64>)
+      }
+    }) {sym_name = "main", function_type = () -> (), sym_visibility = "public"}
+  }) {}
+}

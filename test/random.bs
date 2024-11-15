@@ -1,5 +1,4 @@
 import tensor
-from tensor import matmul
 
 def main():
     # 64 x 64
