@@ -1,8 +1,8 @@
 ; ModuleID = 'matrix_module'
 source_filename = "matrix_module"
 
-@matrixA = private constant [4 x float] [float 1.000000e+00, float 0.000000e+00, float 0.000000e+00, float 1.000000e+00]
-@matrixB = private constant [4 x float] [float 1.000000e+00, float 0.000000e+00, float 0.000000e+00, float 1.000000e+00]
+@matrixA = private constant [4 x float] [float 2.000000e+00, float 3.000000e+00, float 2.000000e+00, float 3.000000e+00]
+@matrixB = private constant [4 x float] [float 5.000000e+00, float 6.000000e+00, float 7.000000e+00, float 8.000000e+00]
 @format = private unnamed_addr constant [40 x i8] c"Result matrix:\0A[%.2f %.2f]\0A[%.2f %.2f]\0A\00", align 1
 
 define i32 @main() {

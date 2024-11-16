@@ -54,17 +54,17 @@ _main:                                  ## @main
 	.section	__TEXT,__const
 	.p2align	2, 0x0                          ## @matrixA
 l_matrixA:
-	.long	0x3f800000                      ## float 1
-	.long	0x00000000                      ## float 0
-	.long	0x00000000                      ## float 0
-	.long	0x3f800000                      ## float 1
+	.long	0x40000000                      ## float 2
+	.long	0x40400000                      ## float 3
+	.long	0x40000000                      ## float 2
+	.long	0x40400000                      ## float 3
 
 	.p2align	2, 0x0                          ## @matrixB
 l_matrixB:
-	.long	0x3f800000                      ## float 1
-	.long	0x00000000                      ## float 0
-	.long	0x00000000                      ## float 0
-	.long	0x3f800000                      ## float 1
+	.long	0x40a00000                      ## float 5
+	.long	0x40c00000                      ## float 6
+	.long	0x40e00000                      ## float 7
+	.long	0x41000000                      ## float 8
 
 	.section	__TEXT,__cstring,cstring_literals
 L_format:                               ## @format

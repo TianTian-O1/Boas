@@ -122,87 +122,97 @@ std::unique_ptr<ExprAST> Parser::parseArrayLiteral() {
 std::unique_ptr<ExprAST> Parser::parseTensorExpr() {
     Debug::log(DEBUG_PARSER, "Parsing tensor expression");
     
-    // Create a variable expression for 'tensor'
     auto tensorExpr = std::make_unique<VariableExprAST>("tensor");
     getNextToken(); // eat 'tensor'
     
-    Debug::log(DEBUG_PARSER, ("Current token after 'tensor': kind=" + 
-               std::to_string(current_token_.kind) + ", value='" + 
-               current_token_.value + "'").c_str());
-               
-    // Handle tensor.matmul case
     if (current_token_.kind == tok_dot) {
-        Debug::log(DEBUG_PARSER, "Found dot operator, parsing member access");
         getNextToken(); // eat '.'
         
-        Debug::log(DEBUG_PARSER, ("Current token after '.': kind=" + 
-                   std::to_string(current_token_.kind) + ", value='" + 
-                   current_token_.value + "'").c_str());
-        
-        if (current_token_.kind != tok_identifier && 
-            current_token_.kind != tok_matmul) {  // Allow 'matmul' as member name
-            return LogError("Expected identifier or 'matmul' after 'tensor.'");
-        }
-        
-        std::string member = current_token_.value;
-        Debug::log(DEBUG_PARSER, ("Found member name: " + member).c_str());
-        getNextToken(); // eat member name
-        
-        // If it's a method call
-        if (current_token_.kind == tok_left_paren) {
-            Debug::log(DEBUG_PARSER, "Parsing method call arguments");
-            getNextToken(); // eat '('
-            std::vector<std::unique_ptr<ExprAST>> args;
+        if (current_token_.kind == tok_matmul) {
+            getNextToken(); // eat 'matmul'
             
-            while (current_token_.kind != tok_right_paren) {
-                Debug::log(DEBUG_PARSER, "Parsing method argument");
-                if (auto arg = parseExpression()) {
-                    args.push_back(std::move(arg));
-                } else {
-                    return nullptr;
-                }
-                
-                if (current_token_.kind == tok_comma) {
-                    getNextToken(); // eat ','
-                } else if (current_token_.kind != tok_right_paren) {
-                    return LogError("Expected ',' or ')' in argument list");
-                }
+            if (current_token_.kind != tok_left_paren) {
+                return LogError("Expected '(' after 'matmul'");
+            }
+            getNextToken(); // eat '('
+            
+            auto lhs = parsePrimary();
+            if (!lhs) return nullptr;
+            
+            if (current_token_.kind != tok_comma) {
+                return LogError("Expected ',' after first matmul argument");
+            }
+            getNextToken(); // eat ','
+            
+            auto rhs = parsePrimary();
+            if (!rhs) return nullptr;
+            
+            if (current_token_.kind != tok_right_paren) {
+                return LogError("Expected ')' after matmul arguments");
             }
             getNextToken(); // eat ')'
             
-            Debug::log(DEBUG_PARSER, "Successfully parsed method call");
-            return std::make_unique<CallExprAST>(member, std::move(args), std::move(tensorExpr));
+            return std::make_unique<MatmulExprAST>(std::move(lhs), std::move(rhs));
+        }
+        else if (current_token_.kind == tok_create) {
+            Debug::log(DEBUG_PARSER, "Parsing tensor.create expression");
+            getNextToken(); // eat 'create'
+            
+            if (current_token_.kind != tok_left_paren) {
+                return LogError("Expected '(' after 'create'");
+            }
+            getNextToken(); // eat '('
+            
+            // Parse dimensions
+            auto rows = parseNumber();
+            if (!rows) return nullptr;
+            
+            if (current_token_.kind != tok_comma) {
+                return LogError("Expected ',' after rows dimension");
+            }
+            getNextToken(); // eat ','
+            
+            auto cols = parseNumber();
+            if (!cols) return nullptr;
+            
+            if (current_token_.kind != tok_right_paren) {
+                return LogError("Expected ')' after dimensions");
+            }
+            getNextToken(); // eat ')'
+            
+            if (current_token_.kind != tok_left_brace) {
+                return LogError("Expected '{' after dimensions");
+            }
+            getNextToken(); // eat '{'
+            
+            // Parse values
+            std::vector<std::unique_ptr<ExprAST>> values;
+            while (current_token_.kind != tok_right_brace) {
+                if (auto val = parseNumber()) {
+                    values.push_back(std::move(val));
+                    
+                    if (current_token_.kind == tok_comma) {
+                        getNextToken(); // eat ','
+                    } else if (current_token_.kind != tok_right_brace) {
+                        return LogError("Expected ',' or '}' after value");
+                    }
+                } else {
+                    return nullptr;
+                }
+            }
+            getNextToken(); // eat '}'
+            
+            return std::make_unique<TensorCreateExprAST>(
+                std::move(rows),
+                std::move(cols),
+                std::move(values)
+            );
         }
         
-        Debug::log(DEBUG_PARSER, "Creating member expression");
-        return std::make_unique<MemberExprAST>(std::move(tensorExpr), member);
+        return LogError("Expected 'create' or 'matmul' after 'tensor.'");
     }
     
-    // Handle tensor([[...]]) case
-    if (current_token_.kind != tok_left_paren) {
-        return LogError("Expected '(' or '.' after 'tensor'");
-    }
-    getNextToken(); // eat '('
-    
-    if (current_token_.kind != tok_left_bracket) {
-        return LogError("Expected '[' in tensor expression");
-    }
-    
-    auto array = parseArrayLiteral();
-    if (!array) {
-        return LogError("Failed to parse array literal in tensor expression");
-    }
-    
-    if (current_token_.kind != tok_right_paren) {
-        return LogError("Expected ')' after tensor arguments");
-    }
-    getNextToken(); // eat ')'
-    
-    if (auto arrayExpr = dynamic_cast<ArrayExprAST*>(array.get())) {
-        return std::make_unique<TensorExprAST>(*arrayExpr);
-    }
-    
-    return LogError("Expected array literal in tensor expression");
+    return LogError("Expected '.' after 'tensor'");
 }
 
 std::unique_ptr<ExprAST> Parser::parseMatmulExpr() {
@@ -460,70 +470,25 @@ std::unique_ptr<FunctionAST> Parser::parseFunction() {
 
 std::unique_ptr<ExprAST> Parser::parsePrimary() {
     Debug::log(DEBUG_PARSER, "Parsing primary expression");
-    auto expr = [&]() -> std::unique_ptr<ExprAST> {
-        switch (current_token_.kind) {
-            case tok_identifier:
-                return parseIdentifierExpr();
-            case tok_number:
-                return parseNumber();
-            case tok_left_paren:
-                return parseParenExpr();
-            case tok_tensor:
-                return parseTensorExpr();
-            case tok_matmul:
-                return parseMatmulExpr();
-            case tok_left_bracket:
-                return parseArrayLiteral();
-            case tok_print:
-                return parsePrintExpr();
-            default:
-                Debug::log(DEBUG_PARSER, ("Unknown token when expecting an expression: kind=" + 
-                          std::to_string(current_token_.kind) + ", value='" + 
-                          current_token_.value + "'").c_str());
-                return nullptr;
-        }
-    }();
-
-    if (!expr) return nullptr;
-
-    // Check for member access
-    while (current_token_.kind == tok_dot) {
-        getNextToken(); // eat '.'
-        
-        if (current_token_.kind != tok_identifier) {
-            return LogError("Expected identifier after '.'");
-        }
-        
-        std::string member = current_token_.value;
-        getNextToken(); // eat member name
-        
-        // If it's a method call
-        if (current_token_.kind == tok_left_paren) {
-            getNextToken(); // eat '('
-            std::vector<std::unique_ptr<ExprAST>> args;
-            
-            while (current_token_.kind != tok_right_paren) {
-                if (auto arg = parseExpression()) {
-                    args.push_back(std::move(arg));
-                } else {
-                    return nullptr;
-                }
-                
-                if (current_token_.kind == tok_comma) {
-                    getNextToken(); // eat ','
-                } else if (current_token_.kind != tok_right_paren) {
-                    return LogError("Expected ',' or ')' in argument list");
-                }
-            }
-            getNextToken(); // eat ')'
-            
-            expr = std::make_unique<CallExprAST>(member, std::move(args), std::move(expr));
-        } else {
-            expr = std::make_unique<MemberExprAST>(std::move(expr), member);
-        }
+    switch (current_token_.kind) {
+        case tok_identifier:
+            return parseIdentifierExpr();
+        case tok_number:
+            return parseNumber();
+        case tok_left_paren:
+            return parseParenExpr();
+        case tok_tensor:
+            return parseTensorExpr();
+        case tok_matmul:
+            return parseMatmulExpr();
+        case tok_print:
+            return parsePrintExpr();
+        default:
+            Debug::log(DEBUG_PARSER, ("Unknown token when expecting an expression: kind=" + 
+                      std::to_string(current_token_.kind) + ", value='" + 
+                      current_token_.value + "'").c_str());
+            return nullptr;
     }
-
-    return expr;
 }
 
 std::unique_ptr<ExprAST> Parser::parseExpression() {

@@ -29,9 +29,9 @@ enum TokenKind {
     tok_dot = -20,
     tok_return = -21,
     tok_linalg = -22,
-    
-    EOF_TOKEN = tok_eof,
-    NEWLINE = tok_newline
+    tok_left_brace,   // {
+    tok_right_brace,  // }
+    tok_create        // create
 };
 
 struct Token {

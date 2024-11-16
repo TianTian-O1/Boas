@@ -1,13 +1,17 @@
 import tensor
 
 def main():
-    # sdad
-    A = tensor([[1, 0],
-                       [0, 1]])
+    # old
+    # A = tensor([[1, 0],
+    #              [0, 1]])
     
-    B = tensor([[1, 0],
-                       [0, 1]])
-    
+    # B = tensor([[1, 0],
+    #              [0, 1]])
+
+    # new
+    A = tensor.create(2,2){2,3,2,3}
+    B = tensor.create(2,2){5,6,7,8}
     C = tensor.matmul(A, B)
+
     
     print(C)

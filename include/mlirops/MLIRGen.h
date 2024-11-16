@@ -26,6 +26,10 @@ private:
     std::string generateMLIRForCall(const CallExprAST* call);
     std::string generateMLIRForPrint(const PrintExprAST* print);
     
+    // Add new methods for tensor creation and matmul
+    std::string generateTensorCreate(const TensorCreateExprAST* expr);
+    std::string generateExpression(const ExprAST* expr);
+    
     // 辅助方法
     std::string getNextTemp() {
         return "%" + std::to_string(temp_counter_++);
@@ -33,6 +37,7 @@ private:
     
 private:
     int temp_counter_ = 0;
+    std::string currentExpr;
 };
 
 } // namespace matrix

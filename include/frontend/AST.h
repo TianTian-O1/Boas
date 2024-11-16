@@ -23,7 +23,10 @@ public:
         Tensor,
         Array,
         Member,
-        Print
+        Print,
+        Assignment,
+        TensorCreate,
+        Matmul
     };
     virtual Kind getKind() const = 0;
 protected:
@@ -139,23 +142,22 @@ public:
 
 // 赋值表达式
 class AssignmentExprAST : public ExprAST {
-    std::string name;
-    std::unique_ptr<ExprAST> value;
+    std::string name_;
+    std::unique_ptr<ExprAST> value_;
 public:
-    AssignmentExprAST(std::string name,
-                      std::unique_ptr<ExprAST> value)
-        : name(std::move(name)), value(std::move(value)) {}
+    AssignmentExprAST(const std::string& name, std::unique_ptr<ExprAST> value)
+        : name_(name), value_(std::move(value)) {}
+    
+    const std::string& getName() const { return name_; }
+    const ExprAST* getRHS() const { return value_.get(); }
     
     void dump(int indent = 0) const override {
         printIndent(indent);
-        std::cout << name << " = ";
-        value->dump(0);
+        std::cout << name_ << " = ";
+        value_->dump(0);
     }
-
-    const std::string& getName() const { return name; }
-    const ExprAST* getValue() const { return value.get(); }
-
-    Kind getKind() const override { return Kind::Binary; }
+    
+    Kind getKind() const override { return Kind::Assignment; }
 };
 
 // 导入语句
@@ -283,6 +285,39 @@ public:
     const ExprAST* getValue() const { return value_.get(); }
     
     Kind getKind() const override { return Kind::Print; }
+};
+
+class TensorCreateExprAST : public ExprAST {
+    std::unique_ptr<ExprAST> rows_;
+    std::unique_ptr<ExprAST> cols_;
+    std::vector<std::unique_ptr<ExprAST>> values_;
+public:
+    TensorCreateExprAST(std::unique_ptr<ExprAST> rows,
+                        std::unique_ptr<ExprAST> cols,
+                        std::vector<std::unique_ptr<ExprAST>> values)
+        : rows_(std::move(rows))
+        , cols_(std::move(cols))
+        , values_(std::move(values)) {}
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        std::cout << "tensor.create(";
+        rows_->dump(0);
+        std::cout << ", ";
+        cols_->dump(0);
+        std::cout << "){";
+        for (size_t i = 0; i < values_.size(); ++i) {
+            if (i > 0) std::cout << ", ";
+            values_[i]->dump(0);
+        }
+        std::cout << "}";
+    }
+    
+    const ExprAST* getRows() const { return rows_.get(); }
+    const ExprAST* getCols() const { return cols_.get(); }
+    const std::vector<std::unique_ptr<ExprAST>>& getValues() const { return values_; }
+    
+    Kind getKind() const override { return Kind::Tensor; }
 };
 
 } // namespace matrix

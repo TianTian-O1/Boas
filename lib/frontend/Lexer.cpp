@@ -33,15 +33,12 @@ std::string Lexer::readNumber() {
 void Lexer::skipWhitespace() {
     while (current_ < input_.length()) {
         char c = input_[current_];
-        if (c == ' ' || c == '\t') {
+        if (c == ' ' || c == '\t' || c == '\r') {
             current_++;
         } else if (c == '#') {
             while (current_ < input_.length() && input_[current_] != '\n') {
                 current_++;
             }
-            break;
-        } else if (c == '\n') {
-            break;
         } else {
             break;
         }
@@ -65,12 +62,13 @@ Token Lexer::getNextToken() {
     if (std::isalpha(input_[current_])) {
         std::string identifier = readIdentifier();
         
+        if (identifier == "tensor") return createToken(tok_tensor, identifier);
+        if (identifier == "create") return createToken(tok_create, identifier);
+        if (identifier == "matmul") return createToken(tok_matmul, identifier);
+        if (identifier == "print") return createToken(tok_print, identifier);
         if (identifier == "def") return createToken(tok_def, identifier);
         if (identifier == "import") return createToken(tok_import, identifier);
         if (identifier == "from") return createToken(tok_from, identifier);
-        if (identifier == "tensor") return createToken(tok_tensor, identifier);
-        if (identifier == "matmul") return createToken(tok_matmul, identifier);
-        if (identifier == "print") return createToken(tok_print, identifier);
         if (identifier == "return") return createToken(tok_return, identifier);
         if (identifier == "linalg") return createToken(tok_linalg, identifier);
         
@@ -83,6 +81,8 @@ Token Lexer::getNextToken() {
     
     char currentChar = input_[current_++];
     switch (currentChar) {
+        case '{': return createToken(tok_left_brace, "{");
+        case '}': return createToken(tok_right_brace, "}");
         case '=': return createToken(tok_equal, "=");
         case ',': return createToken(tok_comma, ",");
         case '[': return createToken(tok_left_bracket, "[");

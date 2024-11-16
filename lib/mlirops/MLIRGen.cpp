@@ -7,21 +7,38 @@ namespace matrix {
 std::string MLIRGen::generateMLIR(const std::vector<std::unique_ptr<ExprAST>>& ast) {
     std::stringstream ss;
     ss << "module {\n";
-    // Add required dialect registrations
     ss << "  \"builtin.module\"() ({\n";
-    ss << "    \"func.func\"() ({\n";
     
+    // Handle imports first
     for (const auto& node : ast) {
-        if (auto import = dynamic_cast<const ImportAST*>(node.get())) {
-            ss << "      // Import: " << import->getModuleName() << "\n";
-        } else {
-            ss << generateMLIRForNode(node.get()) << "\n";
+        if (auto* import = dynamic_cast<const ImportAST*>(node.get())) {
+            ss << "    " << generateMLIRForImport(import);
         }
     }
     
+    // Generate main function
+    ss << "    \"func.func\"() ({\n";
+    ss << "    func @main() {\n";
+    
+    // Handle function body
+    for (const auto& node : ast) {
+        if (auto* func = dynamic_cast<const FunctionAST*>(node.get())) {
+            for (const auto& expr : func->getBody()) {
+                if (auto* assign = dynamic_cast<const AssignmentExprAST*>(expr.get())) {
+                    ss << generateMLIRForAssignment(assign) << "\n";
+                } else if (auto* print = dynamic_cast<const PrintExprAST*>(expr.get())) {
+                    ss << "      \"tensor.print\"(" << generateExpression(print->getValue()) 
+                       << ") : (tensor<2x2xf64>)\n";
+                }
+            }
+        }
+    }
+    
+    ss << "    }\n";
     ss << "    }) {sym_name = \"main\", function_type = () -> (), sym_visibility = \"public\"}\n";
     ss << "  }) {}\n";
     ss << "}\n";
+    
     return ss.str();
 }
 
@@ -65,16 +82,24 @@ std::string MLIRGen::generateMLIRForFunction(const FunctionAST* function) {
 }
 
 std::string MLIRGen::generateMLIRForAssignment(const AssignmentExprAST* assignment) {
+    std::string varName = assignment->getName();
+    std::string rhs;
     std::stringstream ss;
-    ss << "    %" << assignment->getName() << " = ";
     
-    const ExprAST* value = assignment->getValue();
-    if (auto tensor = dynamic_cast<const TensorExprAST*>(value)) {
-        ss << generateMLIRForTensor(tensor);
-    } else if (auto call = dynamic_cast<const CallExprAST*>(value)) {
-        ss << generateMLIRForCall(call);
-    } else {
-        ss << "// Unknown assignment value type";
+    const ExprAST* rhsExpr = assignment->getRHS();
+    if (auto* tensor = dynamic_cast<const TensorCreateExprAST*>(rhsExpr)) {
+        ss << "    %" << varName << " = " << generateTensorCreate(tensor);
+    } else if (auto* matmul = dynamic_cast<const MatmulExprAST*>(rhsExpr)) {
+        auto* lhs = dynamic_cast<const VariableExprAST*>(matmul->getLHS());
+        auto* rhs = dynamic_cast<const VariableExprAST*>(matmul->getRHS());
+        
+        if (!lhs || !rhs) {
+            throw std::runtime_error("Matrix multiplication operands must be variables");
+        }
+        
+        ss << "    %" << varName << " = \"linalg.matmul\"(%" << lhs->getName() 
+           << ", %" << rhs->getName() << ") : "
+           << "(tensor<2x2xf64>, tensor<2x2xf64>) -> tensor<2x2xf64>";
     }
     
     return ss.str();
@@ -120,17 +145,6 @@ std::string MLIRGen::generateMLIRForTensor(const TensorExprAST* tensor) {
     return ss.str();
 }
 
-std::string MLIRGen::generateMLIRForMatmul(const MatmulExprAST* matmul) {
-    std::stringstream ss;
-    auto lhs = dynamic_cast<const VariableExprAST*>(matmul->getLHS());
-    auto rhs = dynamic_cast<const VariableExprAST*>(matmul->getRHS());
-    
-    ss << "linalg.matmul\n"
-       << "    ins(%" << lhs->getName() << ", %" << rhs->getName() << " : tensor<2x2xf64>, tensor<2x2xf64>)\n"
-       << "    outs(%result : tensor<2x2xf64>)\n"
-       << "    -> tensor<2x2xf64>";
-    return ss.str();
-}
 
 std::string MLIRGen::generateMLIRForVariable(const VariableExprAST* variable) {
     return "%" + variable->getName();
@@ -156,7 +170,64 @@ std::string MLIRGen::generateMLIRForCall(const CallExprAST* call) {
 
 std::string MLIRGen::generateMLIRForPrint(const PrintExprAST* print) {
     std::stringstream ss;
-    ss << "      \"tensor.print\"(" << generateMLIRForNode(print->getValue()) << ") : (tensor<2x2xf64>)";
+    if (auto* var = dynamic_cast<const VariableExprAST*>(print->getValue())) {
+        ss << "      \"tensor.print\"(%" << var->getName() << ") : (tensor<2x2xf64>)";
+    }
+    return ss.str();
+}
+
+std::string MLIRGen::generateExpression(const ExprAST* expr) {
+    if (auto* tensor = dynamic_cast<const TensorCreateExprAST*>(expr)) {
+        return generateTensorCreate(tensor);
+    } else if (auto* matmul = dynamic_cast<const MatmulExprAST*>(expr)) {
+        return generateMLIRForMatmul(matmul);
+    } else if (auto* var = dynamic_cast<const VariableExprAST*>(expr)) {
+        return generateMLIRForVariable(var);
+    }
+    return ""; // Handle other cases as needed
+}
+
+std::string MLIRGen::generateTensorCreate(const TensorCreateExprAST* expr) {
+    // Get dimensions
+    auto rows = dynamic_cast<const NumberExprAST*>(expr->getRows());
+    auto cols = dynamic_cast<const NumberExprAST*>(expr->getCols());
+    
+    if (!rows || !cols) {
+        throw std::runtime_error("Tensor dimensions must be numeric constants");
+    }
+    
+    int numRows = static_cast<int>(rows->getValue());
+    int numCols = static_cast<int>(cols->getValue());
+    
+    // Build the elements string
+    std::string elements;
+    const auto& values = expr->getValues();
+    for (size_t i = 0; i < values.size(); i++) {
+        if (auto num = dynamic_cast<const NumberExprAST*>(values[i].get())) {
+            if (i > 0) elements += ", ";
+            elements += std::to_string(num->getValue());
+        } else {
+            throw std::runtime_error("Tensor elements must be numeric constants");
+        }
+    }
+    
+    // Generate MLIR tensor creation
+    std::stringstream ss;
+    ss << "\"tensor.from_elements\"() ({" << elements << "}) "
+       << "{type = tensor<" << numRows << "x" << numCols << "xf64>}";
+    
+    return ss.str();
+}
+
+std::string MLIRGen::generateMLIRForMatmul(const MatmulExprAST* matmul) {
+    std::string lhs = generateMLIRForNode(matmul->getLHS());
+    std::string rhs = generateMLIRForNode(matmul->getRHS());
+    
+    std::string temp = getNextTemp();
+    std::stringstream ss;
+    ss << temp << " = \"linalg.matmul\"(" << lhs << ", " << rhs << ") : "
+       << "(tensor<2x2xf64>, tensor<2x2xf64>) -> tensor<2x2xf64>";
+    
     return ss.str();
 }
 
