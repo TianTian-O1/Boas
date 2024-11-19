@@ -51,13 +51,7 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
     std::string clangPath = stripQuotes(CLANG_PATH);
     std::string llvmInstallPath = stripQuotes(LLVM_INSTALL_PATH);
     
-    std::cout << "\n=== Starting MLIR compilation pipeline ===\n";
-    std::cout << "Using tools:\n";
-    std::cout << "  mlir-opt: " << mlirOptPath << "\n";
-    std::cout << "  mlir-translate: " << mlirTranslatePath << "\n";
-    std::cout << "  llc: " << llcPath << "\n";
-    std::cout << "  clang: " << clangPath << "\n";
-    std::cout << "  LLVM install path: " << llvmInstallPath << "\n\n";
+    std::cout << "\n=== Starting MLIR optimization pipeline ===\n";
     
     // Write MLIR to temporary file
     std::string mlirPath = workDir + "/temp.mlir";
@@ -67,44 +61,40 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
             throw std::runtime_error("Failed to create MLIR file");
         }
         mlirFile << mlir;
-        mlirFile.close();  // 确保文件写入并关闭
     }
-    std::cout << "Generated MLIR file at: " << mlirPath << "\n";
     
     // MLIR optimization pipeline
     std::string llvmMlirPath = workDir + "/temp.llvm.mlir";
     std::string optCmd = "\"" + mlirOptPath + "\"" + 
         " " + mlirPath +
-        " --convert-linalg-to-loops" +         // 转换 linalg 到循环
-        " --convert-scf-to-cf" +               // 转换结构化控制流到 CFG
-        " --convert-func-to-llvm" +            // 转换函数到 LLVM
-        " --finalize-memref-to-llvm" +         // 转换 memref 到 LLVM
-        " --convert-arith-to-llvm" +           // 转换算术操作到 LLVM
-        " --convert-vector-to-llvm" +          // 转换向量操作到 LLVM
-        " --reconcile-unrealized-casts" +      // 处理未实现的转换
-        " --convert-index-to-llvm" +           // 添加索引类型转换
+        " --pass-pipeline=\"builtin.module("
+        "convert-linalg-to-loops,"        // linalg 到循环
+        "convert-scf-to-cf,"              // scf 到 cf
+        "convert-arith-to-llvm,"          // arith 到 llvm
+        "func.func(canonicalize),"         // 函数级优化
+        "convert-func-to-llvm,"           // func 到 llvm
+        "finalize-memref-to-llvm,"        // memref 最终转换
+        "reconcile-unrealized-casts)\"" +  // 处理未实现的转换
         " -o " + llvmMlirPath;
             
     std::cout << "\nExecuting MLIR optimization:\n" << optCmd << "\n";
-    int optResult = system(optCmd.c_str());
-    if (optResult != 0) {
+    if (system(optCmd.c_str()) != 0) {
         // 如果失败，打印输入文件内容以帮助调试
         std::cout << "\nInput MLIR content:\n";
         std::ifstream inFile(mlirPath);
         if (inFile.is_open()) {
             std::cout << inFile.rdbuf();
         }
-        throw std::runtime_error("Failed to execute mlir-opt (exit code: " + std::to_string(optResult) + ")");
+        throw std::runtime_error("Failed to execute mlir-opt");
     }
-    std::cout << "MLIR optimization completed\n";
-
+    
     // 检查转换后的文件
     std::cout << "\nChecking converted MLIR:\n";
     std::ifstream convertedFile(llvmMlirPath);
     if (convertedFile.is_open()) {
         std::cout << convertedFile.rdbuf() << "\n";
     }
-
+    
     // Convert to LLVM IR
     std::string llPath = workDir + "/temp.ll";
     std::string translateCmd = "\"" + mlirTranslatePath + "\"" +
@@ -113,26 +103,37 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
         " -o " + llPath;
             
     std::cout << "\nConverting to LLVM IR:\n" << translateCmd << "\n";
-    int translateResult = system(translateCmd.c_str());
-    if (translateResult != 0) {
-        throw std::runtime_error("Failed to execute mlir-translate (exit code: " + std::to_string(translateResult) + ")");
+    if (system(translateCmd.c_str()) != 0) {
+        throw std::runtime_error("Failed to execute mlir-translate");
     }
-    std::cout << "LLVM IR generation completed\n";
-
-    // Compile to assembly
+    
+    // Compile to assembly with optimization flags
     std::string sPath = workDir + "/temp.s";
     std::string llcCmd = "\"" + llcPath + "\"" + 
-        " " + llPath + " -o " + sPath;
-    std::cout << "\nGenerating assembly:\n" << llcCmd << "\n";
-    int llcResult = system(llcCmd.c_str());
-    if (llcResult != 0) {
-        throw std::runtime_error("Failed to execute llc (exit code: " + std::to_string(llcResult) + ")");
+        " " + llPath +
+        " -O3" +                           // 最高优化级别
+        " -mcpu=native" +                  // 使用本机 CPU 特性
+        " -mattr=+avx2,+fma" +            // 启用 AVX2 和 FMA 指令
+        " -enable-unsafe-fp-math" +        // 启用不安全的浮点数学优化
+        " -fp-contract=fast" +             // 快速浮点数合约
+        " -o " + sPath;
+    
+    std::cout << "\nGenerating optimized assembly:\n" << llcCmd << "\n";
+    if (system(llcCmd.c_str()) != 0) {
+        throw std::runtime_error("Failed to execute llc");
     }
-    std::cout << "Assembly generation completed\n";
-
-    // Compile to executable
+    
+    // Final compilation with clang
     std::string clangCmd = "\"" + clangPath + "\"" + 
         " " + sPath + 
+        " -O3" +                           // 最高优化级别
+        " -march=native" +                 // 使用本机 CPU 特性
+        " -ffast-math" +                   // 启用快速数学
+        " -fno-math-errno" +              // 禁用数学错误检查
+        " -fno-trapping-math" +           // 禁用浮点陷阱
+        " -ffinite-math-only" +           // 假设没有无穷和NaN
+        " -mllvm -force-vector-width=8" +  // 强制向量宽度
+        " -mllvm -force-vector-interleave=4" +  // 向量交织
         " -L" + llvmInstallPath + "/lib" +
         " -Wl,-rpath," + llvmInstallPath + "/lib" +
         " -lmlir_runner_utils" +
@@ -140,17 +141,14 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
         " -lmlir_float16_utils" +
         " -o " + outputPath;
         
-    std::cout << "\nCompiling to executable:\n" << clangCmd << "\n";
-    int clangResult = system(clangCmd.c_str());
-    if (clangResult != 0) {
-        throw std::runtime_error("Failed to execute clang (exit code: " + std::to_string(clangResult) + ")");
+    std::cout << "\nCompiling to executable with optimizations:\n" << clangCmd << "\n";
+    if (system(clangCmd.c_str()) != 0) {
+        throw std::runtime_error("Failed to execute clang");
     }
-    std::cout << "Compilation to executable completed\n";
     
     std::cout << "\n=== MLIR compilation pipeline completed successfully ===\n";
     return true;
 }
-
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {

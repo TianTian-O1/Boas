@@ -68,6 +68,12 @@ set(MLIR_LIBS
     MLIRTransforms
     MLIRLinalgDialect
     MLIRTensorDialect
+    MLIRVectorDialect           # 添加 Vector dialect 支持
+    MLIRVectorToSCF            # Vector 到 SCF 的转换
+    MLIRSCFDialect             # SCF dialect 支持
+    MLIRArithDialect           # Arith dialect 支持
+    MLIRMemRefDialect          # MemRef dialect 支持
+    MLIRLinalgTransforms       # Linalg 变换支持
 )
 
 # 设置库的编译选项

@@ -17,14 +17,14 @@ def main():
     C256 = tensor.matmul(A256, B256)
     
     # 512 x 512
-    # A512 = tensor.random(512, 512)
-    # B512 = tensor.random(512, 512)
-     #C512 = tensor.matmul(A512, B512)
+    A512 = tensor.random(512, 512)
+    B512 = tensor.random(512, 512)
+    C512 = tensor.matmul(A512, B512)
     
     # 1024 x 1024
-    # A1024 = tensor.random(1024, 1024)
-    # B1024 = tensor.random(1024, 1024)
-    # C1024 = tensor.matmul(A1024, B1024)
+    A1024 = tensor.random(1024, 1024)
+    B1024 = tensor.random(1024, 1024)
+    C1024 = tensor.matmul(A1024, B1024)
 
     # 4 x 4
     A4 = tensor.random(2, 2)

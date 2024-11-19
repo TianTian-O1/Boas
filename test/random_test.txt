@@ -1,0 +1,10 @@
+import tensor
+
+def main():
+    
+
+    # 4 x 4
+    A4 = tensor.random(2, 2)
+    B4 = tensor.random(2, 2)
+    C4 = tensor.matmul(A4, B4)
+    print(C4)

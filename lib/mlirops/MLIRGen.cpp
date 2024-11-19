@@ -8,10 +8,6 @@
 
 namespace matrix {
 
-
-// Add this implementation to MLIRGen.cpp
-
-// In MLIRGen.cpp
 MLIRGen::MLIRGen() {
     llvm::errs() << "Initializing MLIRGen...\n";
     context = std::make_unique<mlir::MLIRContext>();
@@ -20,12 +16,14 @@ MLIRGen::MLIRGen() {
         return;
     }
     
-    // Load and register all dialects
+    // Load and register all required dialects
     context->loadDialect<mlir::func::FuncDialect>();
     context->loadDialect<mlir::arith::ArithDialect>();
     context->loadDialect<mlir::memref::MemRefDialect>();
     context->loadDialect<mlir::linalg::LinalgDialect>();
     context->loadDialect<mlir::tensor::TensorDialect>();
+    context->loadDialect<mlir::scf::SCFDialect>();         // 添加 SCF dialect
+    context->loadDialect<mlir::vector::VectorDialect>();   // 添加 Vector dialect
     
     // Create builder
     builder = std::make_unique<mlir::OpBuilder>(context.get());
@@ -34,9 +32,144 @@ MLIRGen::MLIRGen() {
         return;
     }
     
-    llvm::errs() << "MLIRGen initialized successfully\n";
+    llvm::errs() << "MLIRGen initialized successfully with all required dialects\n";
 }
 
+mlir::Value MLIRGen::generateMLIRForMatmul(const MatmulExprAST* expr) {
+    std::cerr << "[DEBUG] Generating optimized matrix multiplication\n";
+    
+    auto lhs = generateMLIRForNode(expr->getLHS());
+    auto rhs = generateMLIRForNode(expr->getRHS());
+    
+    if (!lhs || !rhs) {
+        std::cerr << "Failed to get operands for matmul\n";
+        return nullptr;
+    }
+    
+    auto lhsType = mlir::dyn_cast<mlir::MemRefType>(lhs.getType());
+    auto rhsType = mlir::dyn_cast<mlir::MemRefType>(rhs.getType());
+    
+    if (!lhsType || !rhsType) {
+        std::cerr << "Invalid operand types for matmul\n";
+        return nullptr;
+    }
+    
+    int64_t M = lhsType.getShape()[0];
+    int64_t K = lhsType.getShape()[1];
+    int64_t N = rhsType.getShape()[1];
+    
+    if (K != rhsType.getShape()[0]) {
+        std::cerr << "Incompatible matrix dimensions\n";
+        return nullptr;
+    }
+    
+    // 创建结果矩阵
+    auto resultType = mlir::MemRefType::get({M, N}, builder->getF64Type());
+    auto result = builder->create<mlir::memref::AllocOp>(builder->getUnknownLoc(), resultType);
+
+    // 常量定义
+    auto zero = builder->create<mlir::arith::ConstantFloatOp>(
+        builder->getUnknownLoc(),
+        llvm::APFloat(0.0),
+        builder->getF64Type()
+    );
+    
+    auto lb = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), 0);
+    auto m_ub = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), M);
+    auto n_ub = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), N);
+    auto k_ub = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), K);
+    auto step = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), 1);
+
+    // 初始化结果矩阵为0
+    auto initLoop = builder->create<mlir::scf::ForOp>(
+        builder->getUnknownLoc(), lb, m_ub, step,
+        mlir::ValueRange{},
+        [&](mlir::OpBuilder& nested, mlir::Location loc, mlir::Value i, mlir::ValueRange args) {
+            auto innerLoop = nested.create<mlir::scf::ForOp>(
+                loc, lb, n_ub, step,
+                mlir::ValueRange{},
+                [&](mlir::OpBuilder& inner, mlir::Location inner_loc, mlir::Value j, mlir::ValueRange inner_args) {
+                    inner.create<mlir::memref::StoreOp>(
+                        inner_loc,
+                        zero,
+                        result,
+                        mlir::ValueRange{i, j}
+                    );
+                    inner.create<mlir::scf::YieldOp>(inner_loc);
+                }
+            );
+            nested.create<mlir::scf::YieldOp>(loc);
+        }
+    );
+
+    // 主计算循环
+    auto outerLoop = builder->create<mlir::scf::ForOp>(
+        builder->getUnknownLoc(), lb, m_ub, step,
+        mlir::ValueRange{},
+        [&](mlir::OpBuilder& i_builder, mlir::Location i_loc, mlir::Value i, mlir::ValueRange i_args) {
+            auto middleLoop = i_builder.create<mlir::scf::ForOp>(
+                i_loc, lb, n_ub, step,
+                mlir::ValueRange{},
+                [&](mlir::OpBuilder& j_builder, mlir::Location j_loc, mlir::Value j, mlir::ValueRange j_args) {
+                    auto innerLoop = j_builder.create<mlir::scf::ForOp>(
+                        j_loc, lb, k_ub, step,
+                        mlir::ValueRange{},
+                        [&](mlir::OpBuilder& k_builder, mlir::Location k_loc, mlir::Value k, mlir::ValueRange k_args) {
+                            // 加载当前累积值
+                            auto curr_val = k_builder.create<mlir::memref::LoadOp>(
+                                k_loc,
+                                result,
+                                mlir::ValueRange{i, j}
+                            );
+                            
+                            // 加载矩阵元素
+                            auto a_val = k_builder.create<mlir::memref::LoadOp>(
+                                k_loc,
+                                lhs,
+                                mlir::ValueRange{i, k}
+                            );
+                            
+                            auto b_val = k_builder.create<mlir::memref::LoadOp>(
+                                k_loc,
+                                rhs,
+                                mlir::ValueRange{k, j}
+                            );
+                            
+                            // 计算乘积并累加
+                            auto mul = k_builder.create<mlir::arith::MulFOp>(k_loc, a_val, b_val);
+                            auto add = k_builder.create<mlir::arith::AddFOp>(k_loc, curr_val, mul);
+                            
+                            // 存储结果
+                            k_builder.create<mlir::memref::StoreOp>(
+                                k_loc,
+                                add,
+                                result,
+                                mlir::ValueRange{i, j}
+                            );
+
+                            // 终结内层循环体
+                            k_builder.create<mlir::scf::YieldOp>(k_loc);
+                        }
+                    );
+                    // 终结中层循环体
+                    j_builder.create<mlir::scf::YieldOp>(j_loc);
+                }
+            );
+            // 终结外层循环体
+            i_builder.create<mlir::scf::YieldOp>(i_loc);
+        }
+    );
+
+    // 清理临时操作数
+    if (!isStoredInSymbolTable(lhs)) {
+        builder->create<mlir::memref::DeallocOp>(builder->getUnknownLoc(), lhs);
+    }
+    if (!isStoredInSymbolTable(rhs)) {
+        builder->create<mlir::memref::DeallocOp>(builder->getUnknownLoc(), rhs);
+    }
+
+    return result;
+}
 
 void MLIRGen::dumpState(const std::string& message) {
     llvm::errs() << "\n=== " << message << " ===\n";
@@ -561,7 +694,7 @@ bool validateMatrixDimensions(int64_t rows, int64_t cols, const char* matrixName
 }
 
 mlir::Value MLIRGen::generateMLIRForTensorRandom(const TensorRandomExprAST* expr) {
-    std::cerr << "[DEBUG] Generating random tensor\n";
+    std::cerr << "[DEBUG] Generating optimized random tensor\n";
     auto* rowsNum = static_cast<const NumberExprAST*>(expr->getRows());
     auto* colsNum = static_cast<const NumberExprAST*>(expr->getCols());
     
@@ -574,128 +707,97 @@ mlir::Value MLIRGen::generateMLIRForTensorRandom(const TensorRandomExprAST* expr
     }
     
     auto resultType = mlir::MemRefType::get({rows, cols}, builder->getF64Type());
+    auto alloc = builder->create<mlir::memref::AllocOp>(builder->getUnknownLoc(), resultType);
     
-    // Allocate memory
-    auto alloc = builder->create<mlir::memref::AllocOp>(
-        builder->getUnknownLoc(),
-        resultType
-    );
-    
-    // Use a simple deterministic method for random values
-    unsigned int seed = rows * cols + rows + cols;
-    srand(seed);
-    
-    for (int64_t i = 0; i < rows; ++i) {
-        for (int64_t j = 0; j < cols; ++j) {
-            // Generate random value between 0 and 1
-            double randVal = static_cast<double>(rand()) / RAND_MAX;
-            
-            auto val = builder->create<mlir::arith::ConstantFloatOp>(
-                builder->getUnknownLoc(),
-                llvm::APFloat(randVal),
-                builder->getF64Type()
-            );
-            
-            auto iVal = builder->create<mlir::arith::ConstantIndexOp>(
-                builder->getUnknownLoc(),
-                i
-            );
-            
-            auto jVal = builder->create<mlir::arith::ConstantIndexOp>(
-                builder->getUnknownLoc(),
-                j
-            );
-            
-            builder->create<mlir::memref::StoreOp>(
-                builder->getUnknownLoc(),
-                val,
-                alloc,
-                mlir::ValueRange{iVal, jVal}
-            );
-        }
-    }
-    
-    return alloc;
-}
+    // 创建循环边界
+    auto lb = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), 0);
+    auto ub_rows = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), rows);
+    auto ub_cols = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), cols);
+    auto step = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), 1);
 
-mlir::Value MLIRGen::generateMLIRForMatmul(const MatmulExprAST* expr) {
-    std::cerr << "[DEBUG] Generating matrix multiplication\n";
-    
-    auto lhs = generateMLIRForNode(expr->getLHS());
-    auto rhs = generateMLIRForNode(expr->getRHS());
-    
-    if (!lhs || !rhs) {
-        std::cerr << "Failed to get operands for matmul\n";
-        return nullptr;
-    }
-    
-    auto lhsType = mlir::dyn_cast<mlir::MemRefType>(lhs.getType());
-    auto rhsType = mlir::dyn_cast<mlir::MemRefType>(rhs.getType());
-    
-    if (!lhsType || !rhsType) {
-        std::cerr << "Invalid operand types for matmul\n";
-        return nullptr;
-    }
-    
-    int64_t M = lhsType.getShape()[0];
-    int64_t K = lhsType.getShape()[1];
-    int64_t N = rhsType.getShape()[1];
-    
-    if (K != rhsType.getShape()[0]) {
-        std::cerr << "Incompatible matrix dimensions for multiplication: "
-                  << M << "x" << K << " * " << rhsType.getShape()[0] << "x" << N << "\n";
-        return nullptr;
-    }
-    
-    if (M <= 0 || N <= 0 || M > 2048 || N > 2048) {
-        std::cerr << "Invalid result matrix dimensions: " << M << "x" << N << "\n";
-        return nullptr;
-    }
-    
-    auto resultType = mlir::MemRefType::get({M, N}, builder->getF64Type());
-    
-    // Allocate result memory
-    auto result = builder->create<mlir::memref::AllocOp>(
+    auto cols_val = builder->create<mlir::arith::ConstantFloatOp>(
         builder->getUnknownLoc(),
-        resultType
-    );
-    
-    // Initialize result to 0
-    auto zero = builder->create<mlir::arith::ConstantFloatOp>(
-        builder->getUnknownLoc(),
-        llvm::APFloat(0.0),
+        llvm::APFloat(static_cast<double>(cols)),
         builder->getF64Type()
     );
     
-    builder->create<mlir::linalg::FillOp>(
+    auto total = builder->create<mlir::arith::ConstantFloatOp>(
         builder->getUnknownLoc(),
-        mlir::ValueRange{zero},
-        mlir::ValueRange{result}
+        llvm::APFloat(static_cast<double>(rows * cols)),
+        builder->getF64Type()
+    );
+
+    // 外层循环
+    builder->create<mlir::scf::ForOp>(
+        builder->getUnknownLoc(), lb, ub_rows, step,
+        mlir::ValueRange{},
+        [&](mlir::OpBuilder& i_builder, mlir::Location i_loc, mlir::Value i, mlir::ValueRange) {
+            // 内层循环
+            i_builder.create<mlir::scf::ForOp>(
+                i_loc, lb, ub_cols, step,
+                mlir::ValueRange{},
+                [&](mlir::OpBuilder& j_builder, mlir::Location j_loc, mlir::Value j, mlir::ValueRange) {
+                    // 首先将 index 转换为 i64
+                    auto i_i64 = j_builder.create<mlir::arith::IndexCastOp>(
+                        j_loc,
+                        j_builder.getI64Type(),
+                        i
+                    );
+                    
+                    auto j_i64 = j_builder.create<mlir::arith::IndexCastOp>(
+                        j_loc,
+                        j_builder.getI64Type(),
+                        j
+                    );
+                    
+                    // 然后将 i64 转换为 f64
+                    auto i_f64 = j_builder.create<mlir::arith::SIToFPOp>(
+                        j_loc,
+                        j_builder.getF64Type(),
+                        i_i64
+                    );
+                    
+                    auto j_f64 = j_builder.create<mlir::arith::SIToFPOp>(
+                        j_loc,
+                        j_builder.getF64Type(),
+                        j_i64
+                    );
+                    
+                    // 计算 (i * cols + j) / total
+                    auto row_term = j_builder.create<mlir::arith::MulFOp>(
+                        j_loc,
+                        i_f64,
+                        cols_val
+                    );
+                    
+                    auto sum = j_builder.create<mlir::arith::AddFOp>(
+                        j_loc,
+                        row_term,
+                        j_f64
+                    );
+                    
+                    auto val = j_builder.create<mlir::arith::DivFOp>(
+                        j_loc,
+                        sum,
+                        total
+                    );
+
+                    // 存储结果
+                    j_builder.create<mlir::memref::StoreOp>(
+                        j_loc,
+                        val,
+                        alloc,
+                        mlir::ValueRange{i, j}
+                    );
+
+                    j_builder.create<mlir::scf::YieldOp>(j_loc);
+                }
+            );
+            i_builder.create<mlir::scf::YieldOp>(i_loc);
+        }
     );
     
-    // Create the matmul operation
-    builder->create<mlir::linalg::MatmulOp>(
-        builder->getUnknownLoc(),
-        mlir::ValueRange{lhs, rhs},
-        mlir::ValueRange{result}
-    );
-    
-    // Clean up temporary operands
-    if (!isStoredInSymbolTable(lhs)) {
-        builder->create<mlir::memref::DeallocOp>(
-            builder->getUnknownLoc(),
-            lhs
-        );
-    }
-    
-    if (!isStoredInSymbolTable(rhs)) {
-        builder->create<mlir::memref::DeallocOp>(
-            builder->getUnknownLoc(),
-            rhs
-        );
-    }
-    
-    return result;
+    return alloc;
 }
 
 mlir::Value MLIRGen::generateMLIRForPrint(const PrintExprAST* expr) {
