@@ -34,6 +34,10 @@ private:
     std::unique_ptr<ExprAST> parseTensorExpr();
     std::unique_ptr<ExprAST> parseMatmulExpr();
     std::unique_ptr<ExprAST> parseTensor();
+    std::unique_ptr<ExprAST> parseRandomExpr();
+    std::unique_ptr<AssignmentExprAST> parseAssignment();
+    std::unique_ptr<ExprAST> parseTensorCreate();
+    std::unique_ptr<ExprAST> parseTensorRandom();
     
     // 错误处理
     std::unique_ptr<ExprAST> LogError(const std::string &str);

@@ -6,6 +6,7 @@
 
 namespace matrix {
 
+// In Lexer.h:
 enum TokenKind {
     tok_eof = -1,
     tok_def = -2,
@@ -29,9 +30,10 @@ enum TokenKind {
     tok_dot = -20,
     tok_return = -21,
     tok_linalg = -22,
-    tok_left_brace,   // {
-    tok_right_brace,  // }
-    tok_create        // create
+    tok_create = -23,       // Added create token
+    tok_random = -24,       // Added random token
+    tok_left_brace = -25,   // Added left brace token
+    tok_right_brace = -26   // Added right brace token
 };
 
 struct Token {

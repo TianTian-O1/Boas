@@ -1,4 +1,5 @@
 #include "frontend/Parser.h"
+#include "mlirops/MLIRGen.h"
 #include "Debug.h"
 #include <iostream>
 #include <fstream>
@@ -41,6 +42,15 @@ int main(int argc, char* argv[]) {
         for (const auto& node : ast) {
             node->dump();
             std::cout << "\n";
+        }
+        
+        // 在AST生成之后添加
+        MLIRGen mlirGen;
+        if (auto moduleOp = mlirGen.generateMLIR(ast)) {
+            llvm::errs() << "\nGenerated MLIR:\n";
+            moduleOp.dump();
+        } else {
+            llvm::errs() << "\nFailed to generate MLIR\n";
         }
         
         return 0;

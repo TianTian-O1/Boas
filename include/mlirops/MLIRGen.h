@@ -21,21 +21,6 @@ public:
     MLIRGen();
     mlir::ModuleOp generateMLIR(const std::vector<std::unique_ptr<ExprAST>>& ast);
     std::string getMLIRString(mlir::ModuleOp module);
-    
-    // AST 节点处理方法
-    mlir::Value generateMLIRForNode(const ExprAST* node);
-    mlir::Value generateMLIRForVariable(const VariableExprAST* expr);
-    mlir::Value generateMLIRForAssignment(const AssignmentExprAST* expr);
-    mlir::Value generateNumberMLIR(const NumberExprAST* number);
-    mlir::Value generateMLIRForMatmul(const MatmulExprAST* expr);
-    mlir::Value generateMLIRForPrint(const PrintExprAST* print);
-    mlir::Value generateMLIRForTensorCreate(const TensorCreateExprAST* expr);
-
-    // 辅助方法
-    mlir::FloatType getF64Type();
-    mlir::Value createConstantF64(double value);
-    mlir::Value createConstantIndex(int64_t value);
-    mlir::MemRefType getMemRefType(int64_t rows, int64_t cols);
 
 private:
     std::unique_ptr<mlir::MLIRContext> context;
@@ -43,10 +28,35 @@ private:
     mlir::ModuleOp module;
     std::map<std::string, mlir::Value> symbolTable;
 
+    // Helper methods
+    mlir::FloatType getF64Type();
+    mlir::Value createConstantF64(double value);
+    mlir::Value createConstantIndex(int64_t value);
+    mlir::MemRefType getMemRefType(int64_t rows, int64_t cols);
+    void processASTNode(mlir::Block* block, const std::vector<std::unique_ptr<ExprAST>>& ast);
+    void dumpState(const std::string& message);
+
+    bool isStoredInSymbolTable(mlir::Value value);
+    bool validateMatrixDimensions(int64_t rows, int64_t cols, const char* matrixName);
+
+    // AST node handlers
+    mlir::Value generateMLIRForNode(const ExprAST* node);
     mlir::Value generateMLIRForFunction(const FunctionAST* expr);
     mlir::Value generateMLIRForImport(const ImportAST* expr);
+    mlir::Value generateMLIRForVariable(const VariableExprAST* expr);
+    mlir::Value generateMLIRForAssignment(const AssignmentExprAST* expr);
+    mlir::Value generateNumberMLIR(const NumberExprAST* number);
+    mlir::Value generateMLIRForMatmul(const MatmulExprAST* expr);
+    mlir::Value generateMLIRForPrint(const PrintExprAST* print);
+    mlir::Value generateMLIRForTensorCreate(const TensorCreateExprAST* expr);
+    mlir::Value generateMLIRForTensorRandom(const TensorRandomExprAST* expr);
     mlir::Value generateMLIRForBinary(const BinaryExprAST* expr);
+    mlir::Value generateMLIRForTensor(const TensorExprAST* expr);
+    mlir::Value generateMLIRForCall(const CallExprAST* expr);
+    mlir::Value generateMLIRForArray(const ArrayExprAST* expr);
 
+    // Private initialization helper
+    void initializeContext();
 };
 
 } // namespace matrix

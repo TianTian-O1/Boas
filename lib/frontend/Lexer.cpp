@@ -2,6 +2,7 @@
 #include "Debug.h"
 #include <iostream>
 #include <cctype>
+#include <map>
 
 namespace matrix {
 
@@ -62,15 +63,23 @@ Token Lexer::getNextToken() {
     if (std::isalpha(input_[current_])) {
         std::string identifier = readIdentifier();
         
-        if (identifier == "tensor") return createToken(tok_tensor, identifier);
-        if (identifier == "create") return createToken(tok_create, identifier);
-        if (identifier == "matmul") return createToken(tok_matmul, identifier);
-        if (identifier == "print") return createToken(tok_print, identifier);
-        if (identifier == "def") return createToken(tok_def, identifier);
-        if (identifier == "import") return createToken(tok_import, identifier);
-        if (identifier == "from") return createToken(tok_from, identifier);
-        if (identifier == "return") return createToken(tok_return, identifier);
-        if (identifier == "linalg") return createToken(tok_linalg, identifier);
+        static const std::map<std::string, TokenKind> keywords = {
+            {"tensor", tok_tensor},
+            {"create", tok_create},
+            {"random", tok_random},
+            {"matmul", tok_matmul},
+            {"print", tok_print},
+            {"def", tok_def},
+            {"import", tok_import},
+            {"from", tok_from},
+            {"return", tok_return},
+            {"linalg", tok_linalg}
+        };
+        
+        auto it = keywords.find(identifier);
+        if (it != keywords.end()) {
+            return createToken(it->second, identifier);
+        }
         
         return createToken(tok_identifier, identifier);
     }
@@ -91,38 +100,43 @@ Token Lexer::getNextToken() {
         case ')': return createToken(tok_right_paren, ")");
         case ':': return createToken(tok_colon, ":");
         case '.': return createToken(tok_dot, ".");
+        default: return createToken(tok_eof, std::string(1, currentChar));
     }
-    
-    std::string unknown(1, currentChar);
-    return createToken(tok_eof, unknown);
 }
 
 std::string tokenKindToString(TokenKind kind) {
-    switch (kind) {
-        case tok_eof: return "EOF";
-        case tok_def: return "DEF";
-        case tok_identifier: return "IDENTIFIER";
-        case tok_number: return "NUMBER";
-        case tok_import: return "IMPORT";
-        case tok_from: return "FROM";
-        case tok_tensor: return "TENSOR";
-        case tok_matmul: return "MATMUL";
-        case tok_equal: return "EQUAL";
-        case tok_comma: return "COMMA";
-        case tok_left_bracket: return "LBRACKET";
-        case tok_right_bracket: return "RBRACKET";
-        case tok_left_paren: return "LPAREN";
-        case tok_right_paren: return "RPAREN";
-        case tok_colon: return "COLON";
-        case tok_dedent: return "DEDENT";
-        case tok_indent: return "INDENT";
-        case tok_newline: return "NEWLINE";
-        case tok_print: return "PRINT";
-        case tok_dot: return "DOT";
-        case tok_return: return "RETURN";
-        case tok_linalg: return "LINALG";
-        default: return "UNKNOWN";
-    }
+    static const std::map<TokenKind, std::string> tokenNames = {
+        {tok_eof, "EOF"},
+        {tok_def, "DEF"},
+        {tok_identifier, "IDENTIFIER"},
+        {tok_number, "NUMBER"},
+        {tok_import, "IMPORT"},
+        {tok_from, "FROM"},
+        {tok_tensor, "TENSOR"},
+        {tok_matmul, "MATMUL"},
+        {tok_equal, "EQUAL"},
+        {tok_comma, "COMMA"},
+        {tok_left_bracket, "LBRACKET"},
+        {tok_right_bracket, "RBRACKET"},
+        {tok_left_paren, "LPAREN"},
+        {tok_right_paren, "RPAREN"},
+        {tok_colon, "COLON"},
+        {tok_dedent, "DEDENT"},
+        {tok_indent, "INDENT"},
+        {tok_newline, "NEWLINE"},
+        {tok_print, "PRINT"},
+        {tok_dot, "DOT"},
+        {tok_return, "RETURN"},
+        {tok_linalg, "LINALG"},
+        {tok_create, "CREATE"},
+        {tok_random, "RANDOM"},
+        {tok_left_brace, "LBRACE"},
+        {tok_right_brace, "RBRACE"}
+    };
+    
+    auto it = tokenNames.find(kind);
+    return it != tokenNames.end() ? it->second : "UNKNOWN";
 }
+
 
 } // namespace matrix

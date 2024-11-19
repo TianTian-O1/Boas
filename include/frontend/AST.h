@@ -32,7 +32,8 @@ public:
         Print,
         Assignment,
         TensorCreate,
-        Matmul
+        Matmul,
+        TensorRandom  // Add this new kind
     };
     
     virtual Kind getKind() const = 0;
@@ -344,6 +345,31 @@ public:
     const std::vector<std::unique_ptr<ExprAST>>& getValues() const { return values_; }
     
     Kind getKind() const override { return Kind::TensorCreate; }
+};
+
+
+class TensorRandomExprAST : public ExprAST {
+    std::unique_ptr<ExprAST> rows_;
+    std::unique_ptr<ExprAST> cols_;
+public:
+    TensorRandomExprAST(std::unique_ptr<ExprAST> rows,
+                        std::unique_ptr<ExprAST> cols)
+        : rows_(std::move(rows))
+        , cols_(std::move(cols)) {}
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        std::cout << "tensor.random(";
+        rows_->dump(0);
+        std::cout << ", ";
+        cols_->dump(0);
+        std::cout << ")";
+    }
+    
+    const ExprAST* getRows() const { return rows_.get(); }
+    const ExprAST* getCols() const { return cols_.get(); }
+    
+    Kind getKind() const override { return Kind::TensorRandom; }
 };
 
 class BinaryExprAST : public ExprAST {
