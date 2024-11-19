@@ -2,42 +2,51 @@
 #define MATRIX_MLIR_GEN_H
 
 #include "frontend/AST.h"
-#include <string>
-#include <vector>
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/Verifier.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include <memory>
+#include <map>
 
 namespace matrix {
 
 class MLIRGen {
 public:
-    MLIRGen() = default;
-    std::string generateMLIR(const std::vector<std::unique_ptr<ExprAST>>& ast);
+    MLIRGen();
+    mlir::ModuleOp generateMLIR(const std::vector<std::unique_ptr<ExprAST>>& ast);
+    std::string getMLIRString(mlir::ModuleOp module);
+    
+    // AST 节点处理方法
+    mlir::Value generateMLIRForNode(const ExprAST* node);
+    mlir::Value generateMLIRForVariable(const VariableExprAST* expr);
+    mlir::Value generateMLIRForAssignment(const AssignmentExprAST* expr);
+    mlir::Value generateNumberMLIR(const NumberExprAST* number);
+    mlir::Value generateMLIRForMatmul(const MatmulExprAST* expr);
+    mlir::Value generateMLIRForPrint(const PrintExprAST* print);
+    mlir::Value generateMLIRForTensorCreate(const TensorCreateExprAST* expr);
+
+    // 辅助方法
+    mlir::FloatType getF64Type();
+    mlir::Value createConstantF64(double value);
+    mlir::Value createConstantIndex(int64_t value);
+    mlir::MemRefType getMemRefType(int64_t rows, int64_t cols);
 
 private:
-    std::string generateMLIRForNode(const ExprAST* node);
-    std::string generateMLIRForImport(const ImportAST* import);
-    std::string generateMLIRForFunction(const FunctionAST* function);
-    std::string generateMLIRForAssignment(const AssignmentExprAST* assignment);
-    std::string generateMLIRForArray(const ArrayExprAST* array);
-    std::string generateMLIRForTensor(const TensorExprAST* tensor);
-    std::string generateMLIRForMatmul(const MatmulExprAST* matmul);
-    std::string generateMLIRForVariable(const VariableExprAST* variable);
-    std::string generateNumberMLIR(const NumberExprAST* number);
-    std::string generateMLIRForCall(const CallExprAST* call);
-    std::string generateMLIRForPrint(const PrintExprAST* print);
-    
-    // Add new methods for tensor creation and matmul
-    std::string generateTensorCreate(const TensorCreateExprAST* expr);
-    std::string generateExpression(const ExprAST* expr);
-    
-    // 辅助方法
-    std::string getNextTemp() {
-        return "%" + std::to_string(temp_counter_++);
-    }
-    
-private:
-    int temp_counter_ = 0;
-    std::string currentExpr;
+    std::unique_ptr<mlir::MLIRContext> context;
+    std::unique_ptr<mlir::OpBuilder> builder;
+    mlir::ModuleOp module;
+    std::map<std::string, mlir::Value> symbolTable;
+
+    mlir::Value generateMLIRForFunction(const FunctionAST* expr);
+    mlir::Value generateMLIRForImport(const ImportAST* expr);
+    mlir::Value generateMLIRForBinary(const BinaryExprAST* expr);
+
 };
 
 } // namespace matrix

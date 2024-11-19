@@ -10,9 +10,15 @@ namespace matrix {
 
 // 基类
 class ExprAST {
+protected:
+    ExprAST* parent = nullptr;
+    
 public:
     virtual ~ExprAST() = default;
-    virtual void dump(int indent = 0) const = 0;
+    
+    void setParent(ExprAST* p) { parent = p; }
+    ExprAST* getParent() const { return parent; }
+    
     enum Kind {
         Number,
         Variable,
@@ -28,7 +34,15 @@ public:
         TensorCreate,
         Matmul
     };
+    
     virtual Kind getKind() const = 0;
+    virtual void dump(int indent = 0) const = 0;
+    
+    // Add static classof method for LLVM RTTI
+    static bool classof(const ExprAST* expr) {
+        return true;  // Base class accepts all
+    }
+    
 protected:
     void printIndent(int level) const {
         for (int i = 0; i < level; ++i) std::cout << "  ";
@@ -94,6 +108,14 @@ public:
                   std::unique_ptr<ExprAST> rhs)
         : lhs(std::move(lhs)), rhs(std::move(rhs)) {}
     
+    // Const getters
+    const ExprAST* getLHS() const { return lhs.get(); }
+    const ExprAST* getRHS() const { return rhs.get(); }
+    
+    // Non-const getters
+    ExprAST* getLHS() { return lhs.get(); }
+    ExprAST* getRHS() { return rhs.get(); }
+
     void dump(int indent = 0) const override {
         printIndent(indent);
         std::cout << "matmul(";
@@ -103,10 +125,11 @@ public:
         std::cout << ")";
     }
 
-    const ExprAST* getLHS() const { return lhs.get(); }
-    const ExprAST* getRHS() const { return rhs.get(); }
+    Kind getKind() const override { return Kind::Matmul; }
 
-    Kind getKind() const override { return Kind::Binary; }
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::Matmul;
+    }
 };
 
 // 变量表达式
@@ -122,42 +145,53 @@ public:
     }
 
     Kind getKind() const override { return Kind::Variable; }
+
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::Variable;
+    }
 };
 
 // 数字表达式
 class NumberExprAST : public ExprAST {
-    double value;
+    double Val;
 public:
-    NumberExprAST(double value) : value(value) {}
-    
-    double getValue() const { return value; }
+    NumberExprAST(double Val) : Val(Val) {}
+    double getValue() const { return Val; }
     
     void dump(int indent = 0) const override {
         printIndent(indent);
-        std::cout << value;
+        std::cout << Val;
     }
-
+    
     Kind getKind() const override { return Kind::Number; }
+
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::Number;
+    }
 };
 
 // 赋值表达式
 class AssignmentExprAST : public ExprAST {
-    std::string name_;
-    std::unique_ptr<ExprAST> value_;
+    std::string Name;
+    std::unique_ptr<ExprAST> Value;
 public:
-    AssignmentExprAST(const std::string& name, std::unique_ptr<ExprAST> value)
-        : name_(name), value_(std::move(value)) {}
+    AssignmentExprAST(const std::string &Name, std::unique_ptr<ExprAST> Value)
+        : Name(Name), Value(std::move(Value)) {}
     
-    const std::string& getName() const { return name_; }
-    const ExprAST* getRHS() const { return value_.get(); }
+    const std::string &getName() const { return Name; }
+    const ExprAST* getValue() const { return Value.get(); }
     
     void dump(int indent = 0) const override {
         printIndent(indent);
-        std::cout << name_ << " = ";
-        value_->dump(0);
+        std::cout << "Assignment " << Name << " = ";
+        Value->dump(0);
     }
     
     Kind getKind() const override { return Kind::Assignment; }
+
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::Assignment;
+    }
 };
 
 // 导入语句
@@ -185,39 +219,32 @@ public:
 
 // 函数调用
 class CallExprAST : public ExprAST {
-    std::unique_ptr<ExprAST> object_;  // The object being called on (e.g., tensor in tensor.matmul)
-    std::string member_;               // The member function name (e.g., matmul)
-    std::vector<std::unique_ptr<ExprAST>> arguments_;  // The function arguments
+    std::string callee_;
+    std::vector<std::unique_ptr<ExprAST>> args_;
 
 public:
-    CallExprAST(const std::string& member, 
-                std::vector<std::unique_ptr<ExprAST>> arguments,
-                std::unique_ptr<ExprAST> object)
-        : member_(member), 
-          arguments_(std::move(arguments)), 
-          object_(std::move(object)) {}
+    CallExprAST(const std::string &callee,
+                std::vector<std::unique_ptr<ExprAST>> args)
+        : callee_(callee), args_(std::move(args)) {}
 
-    void dump(int indent = 0) const override {
-        printIndent(indent);
-        std::cout << "Call(";
-        if (object_) {
-            object_->dump(0);
-            std::cout << ".";
-        }
-        std::cout << member_ << ", args: [";
-        for (const auto& arg : arguments_) {
-            arg->dump(0);
-            std::cout << ", ";
-        }
-        std::cout << "])";
-    }
+    const std::string& getCallee() const { return callee_; }
+    const std::vector<std::unique_ptr<ExprAST>>& getArgs() const { return args_; }
 
     Kind getKind() const override { return Kind::Call; }
 
-    // Add these getter methods
-    const ExprAST* getObject() const { return object_.get(); }
-    const std::string& getMemberName() const { return member_; }
-    const std::vector<std::unique_ptr<ExprAST>>& getArguments() const { return arguments_; }
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::Call;
+    }
+
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        std::cout << "Call " << callee_ << "(";
+        for (const auto& arg : args_) {
+            arg->dump(0);
+            std::cout << " ";
+        }
+        std::cout << ")";
+    }
 };
 
 // 函数定义
@@ -270,19 +297,18 @@ public:
 };
 
 class PrintExprAST : public ExprAST {
-    std::unique_ptr<ExprAST> value_;
+    std::unique_ptr<ExprAST> Value;
 public:
-    PrintExprAST(std::unique_ptr<ExprAST> value)
-        : value_(std::move(value)) {}
-        
+    PrintExprAST(std::unique_ptr<ExprAST> Value)
+        : Value(std::move(Value)) {}
+    
+    const ExprAST* getValue() const { return Value.get(); }
+    
     void dump(int indent = 0) const override {
         printIndent(indent);
-        std::cout << "print(";
-        value_->dump(0);
-        std::cout << ")";
+        std::cout << "print ";
+        Value->dump(0);
     }
-    
-    const ExprAST* getValue() const { return value_.get(); }
     
     Kind getKind() const override { return Kind::Print; }
 };
@@ -317,7 +343,35 @@ public:
     const ExprAST* getCols() const { return cols_.get(); }
     const std::vector<std::unique_ptr<ExprAST>>& getValues() const { return values_; }
     
-    Kind getKind() const override { return Kind::Tensor; }
+    Kind getKind() const override { return Kind::TensorCreate; }
+};
+
+class BinaryExprAST : public ExprAST {
+    std::unique_ptr<ExprAST> lhs_;
+    std::unique_ptr<ExprAST> rhs_;
+    std::string op_;
+public:
+    BinaryExprAST(std::unique_ptr<ExprAST> lhs,
+                  std::unique_ptr<ExprAST> rhs,
+                  const std::string& op)
+        : lhs_(std::move(lhs))
+        , rhs_(std::move(rhs))
+        , op_(op) {}
+    
+    const ExprAST* getLHS() const { return lhs_.get(); }
+    const ExprAST* getRHS() const { return rhs_.get(); }
+    const std::string& getOp() const { return op_; }
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        std::cout << "(" << op_ << " ";
+        lhs_->dump(0);
+        std::cout << " ";
+        rhs_->dump(0);
+        std::cout << ")";
+    }
+    
+    Kind getKind() const override { return Kind::Binary; }
 };
 
 } // namespace matrix

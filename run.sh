@@ -34,7 +34,12 @@ while getopts "d:t:h" opt; do
       esac
       ;;
     t)
-      TEST_FILE=$OPTARG
+      if [ -f "$OPTARG" ]; then
+        TEST_FILE="$OPTARG"
+      else
+        echo "Error: Test file '$OPTARG' does not exist"
+        exit 1
+      fi
       ;;
     h)
       echo "Usage: $0 [-d debug_level] [-t test_file]"
@@ -66,20 +71,24 @@ echo -e "${YELLOW}Building project...${NC}"
 make
 
 # 如果构建成功且指定了测试文件，则运行测试
+# 修改后的测试运行部分
 if [ $? -eq 0 ] && [ ! -z "$TEST_FILE" ]; then
     echo -e "${GREEN}Build successful! Running tests...${NC}"
     
-    # 运行词法分析器测试
+    # 获取完整的测试文件路径
+    TEST_FILE_PATH="$TEST_FILE"
+    if [[ ! "$TEST_FILE" = /* ]]; then
+        TEST_FILE_PATH="$(pwd)/../$TEST_FILE"
+    fi
+    
     echo -e "${YELLOW}Running lexer test...${NC}"
-    ./test-lexer ../$TEST_FILE
+    ./test-lexer "$TEST_FILE_PATH"
     
-    # 运行解析器测试
     echo -e "${YELLOW}Running parser test...${NC}"
-    ./test-parser ../$TEST_FILE
+    ./test-parser "$TEST_FILE_PATH"
     
-    # 运行 LLVM 测试
     echo -e "${YELLOW}Running LLVM test...${NC}"
-    ./test-llvm ../$TEST_FILE
+    ./test-llvm "$TEST_FILE_PATH"
 else
     echo -e "${RED}Build failed or no test file specified${NC}"
 fi

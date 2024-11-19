@@ -240,7 +240,10 @@ std::unique_ptr<ExprAST> Parser::parseMatmulExpr() {
     }
     getNextToken(); // eat ')'
     
-    return std::make_unique<MatmulExprAST>(std::move(lhs), std::move(rhs));
+    auto expr = std::make_unique<MatmulExprAST>(std::move(lhs), std::move(rhs));
+    expr->getLHS()->setParent(expr.get());
+    expr->getRHS()->setParent(expr.get());
+    return expr;
 }
 
 std::unique_ptr<ExprAST> Parser::parseIdentifierExpr() {
