@@ -44,10 +44,33 @@ fi
 
 # 运行Boas基准测试
 echo "Running Boas benchmarks..."
-if [ -f "../../boas" ]; then
-    ../../boas boas_bench.bs
+cd ../src
+if [ -f "boas_bench.bs" ]; then
+    if [ -f "../../build/matrix-compiler" ]; then
+        for size in 64 128 256 512 1024; do
+            # 记录开始时间和内存
+            start_time=$(date +%s.%N)
+            start_memory=$(ps -o rss= -p $$)
+            
+            # 运行测试
+            ../../build/matrix-compiler --run boas_bench.bs
+            
+            # 记录结束时间和内存
+            end_time=$(date +%s.%N)
+            end_memory=$(ps -o rss= -p $$)
+            
+            # 计算时间和内存使用
+            time_ms=$(echo "($end_time - $start_time) * 1000" | bc)
+            memory_kb=$(echo "$end_memory - $start_memory" | bc)
+            
+            # 添加到结果文件
+            echo "matrix_multiplication,Boas,$size,$time_ms,$memory_kb" >> ../results/results.csv
+        done
+    else
+        echo "Warning: matrix-compiler not found, skipping Boas benchmarks"
+    fi
 else
-    echo "Warning: Boas compiler not found, skipping Boas benchmarks"
+    echo "Warning: boas_bench.bs not found"
 fi
 
 # 生成图表

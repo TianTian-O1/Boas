@@ -9,8 +9,12 @@ def plot_results():
     
     # 设置风格和颜色
     plt.style.use('seaborn-v0_8-darkgrid')
-    colors = ['#FF6B6B', '#4ECDC4', '#45B7D1']  # 红色、青色和蓝色
+    colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']  # 红色、青色、蓝色和 Boas
     sns.set_palette(colors)
+    
+    # 确保语言顺序一致
+    language_order = ['C++', 'NumPy', 'Pure Python (Opt)', 'Boas']
+    df['language'] = pd.Categorical(df['language'], categories=language_order, ordered=True)
     
     # 设置字体
     plt.rcParams['font.family'] = 'Arial'

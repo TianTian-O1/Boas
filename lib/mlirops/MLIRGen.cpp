@@ -492,7 +492,6 @@ mlir::ModuleOp MLIRGen::generateMLIR(const std::vector<std::unique_ptr<ExprAST>>
 }
 
 
-
 mlir::Value MLIRGen::generateMLIRForImport(const ImportAST* import) {
     if (!import) {
         std::cerr << "Error: Null import AST\n";
@@ -694,7 +693,7 @@ bool validateMatrixDimensions(int64_t rows, int64_t cols, const char* matrixName
 }
 
 mlir::Value MLIRGen::generateMLIRForTensorRandom(const TensorRandomExprAST* expr) {
-    std::cerr << "[DEBUG] Generating optimized random tensor\n";
+    std::cerr << "[DEBUG] Generating highly optimized random tensor\n";
     auto* rowsNum = static_cast<const NumberExprAST*>(expr->getRows());
     auto* colsNum = static_cast<const NumberExprAST*>(expr->getCols());
     
@@ -708,11 +707,17 @@ mlir::Value MLIRGen::generateMLIRForTensorRandom(const TensorRandomExprAST* expr
     
     auto resultType = mlir::MemRefType::get({rows, cols}, builder->getF64Type());
     auto alloc = builder->create<mlir::memref::AllocOp>(builder->getUnknownLoc(), resultType);
-    
-    // 创建循环边界
+
+    // 分块大小 - L1缓存优化
+    const int64_t TILE_SIZE = 32; 
+    const int64_t VECTOR_SIZE = 8;  // AVX-512 double向量大小
+
+    // 创建常量
     auto lb = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), 0);
     auto ub_rows = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), rows);
     auto ub_cols = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), cols);
+    auto tile_step = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), TILE_SIZE);
+    auto vec_step = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), VECTOR_SIZE);
     auto step = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), 1);
 
     auto cols_val = builder->create<mlir::arith::ConstantFloatOp>(
@@ -727,76 +732,110 @@ mlir::Value MLIRGen::generateMLIRForTensorRandom(const TensorRandomExprAST* expr
         builder->getF64Type()
     );
 
-    // 外层循环
+    // 分块的外层循环
     builder->create<mlir::scf::ForOp>(
-        builder->getUnknownLoc(), lb, ub_rows, step,
+        builder->getUnknownLoc(), lb, ub_rows, tile_step,
         mlir::ValueRange{},
-        [&](mlir::OpBuilder& i_builder, mlir::Location i_loc, mlir::Value i, mlir::ValueRange) {
-            // 内层循环
-            i_builder.create<mlir::scf::ForOp>(
-                i_loc, lb, ub_cols, step,
+        [&](mlir::OpBuilder& tile_i_builder, mlir::Location tile_i_loc, mlir::Value tile_i, mlir::ValueRange) {
+            tile_i_builder.create<mlir::scf::ForOp>(
+                tile_i_loc, lb, ub_cols, tile_step,
                 mlir::ValueRange{},
-                [&](mlir::OpBuilder& j_builder, mlir::Location j_loc, mlir::Value j, mlir::ValueRange) {
-                    // 首先将 index 转换为 i64
-                    auto i_i64 = j_builder.create<mlir::arith::IndexCastOp>(
-                        j_loc,
-                        j_builder.getI64Type(),
-                        i
-                    );
-                    
-                    auto j_i64 = j_builder.create<mlir::arith::IndexCastOp>(
-                        j_loc,
-                        j_builder.getI64Type(),
-                        j
-                    );
-                    
-                    // 然后将 i64 转换为 f64
-                    auto i_f64 = j_builder.create<mlir::arith::SIToFPOp>(
-                        j_loc,
-                        j_builder.getF64Type(),
-                        i_i64
-                    );
-                    
-                    auto j_f64 = j_builder.create<mlir::arith::SIToFPOp>(
-                        j_loc,
-                        j_builder.getF64Type(),
-                        j_i64
-                    );
-                    
-                    // 计算 (i * cols + j) / total
-                    auto row_term = j_builder.create<mlir::arith::MulFOp>(
-                        j_loc,
-                        i_f64,
-                        cols_val
-                    );
-                    
-                    auto sum = j_builder.create<mlir::arith::AddFOp>(
-                        j_loc,
-                        row_term,
-                        j_f64
-                    );
-                    
-                    auto val = j_builder.create<mlir::arith::DivFOp>(
-                        j_loc,
-                        sum,
-                        total
-                    );
+                [&](mlir::OpBuilder& tile_j_builder, mlir::Location tile_j_loc, mlir::Value tile_j, mlir::ValueRange) {
+                    // 分块内部的细粒度循环
+                    tile_j_builder.create<mlir::scf::ForOp>(
+                        tile_j_loc, lb, tile_step, step,
+                        mlir::ValueRange{},
+                        [&](mlir::OpBuilder& i_builder, mlir::Location i_loc, mlir::Value i_offset, mlir::ValueRange) {
+                            // 向量化的内层循环
+                            i_builder.create<mlir::scf::ForOp>(
+                                i_loc, lb, tile_step, vec_step,
+                                mlir::ValueRange{},
+                                [&](mlir::OpBuilder& j_builder, mlir::Location j_loc, mlir::Value j_offset, mlir::ValueRange) {
+                                    // 计算实际索引
+                                    auto i_val = j_builder.create<mlir::arith::AddIOp>(
+                                        j_loc,
+                                        tile_i,
+                                        i_offset
+                                    );
 
-                    // 存储结果
-                    j_builder.create<mlir::memref::StoreOp>(
-                        j_loc,
-                        val,
-                        alloc,
-                        mlir::ValueRange{i, j}
-                    );
+                                    // 转换为浮点数进行计算
+                                    auto i_i64 = j_builder.create<mlir::arith::IndexCastOp>(
+                                        j_loc,
+                                        j_builder.getI64Type(),
+                                        i_val
+                                    );
+                                    
+                                    auto i_f64 = j_builder.create<mlir::arith::SIToFPOp>(
+                                        j_loc,
+                                        j_builder.getF64Type(),
+                                        i_i64
+                                    );
 
-                    j_builder.create<mlir::scf::YieldOp>(j_loc);
+                                    // 对向量中的每个元素进行计算
+                                    for (int64_t v = 0; v < VECTOR_SIZE; ++v) {
+                                        auto j_val = j_builder.create<mlir::arith::AddIOp>(
+                                            j_loc,
+                                            tile_j,
+                                            j_builder.create<mlir::arith::AddIOp>(
+                                                j_loc,
+                                                j_offset,
+                                                j_builder.create<mlir::arith::ConstantIndexOp>(j_loc, v)
+                                            )
+                                        );
+                                        
+                                        auto j_i64 = j_builder.create<mlir::arith::IndexCastOp>(
+                                            j_loc,
+                                            j_builder.getI64Type(),
+                                            j_val
+                                        );
+                                        
+                                        auto j_f64 = j_builder.create<mlir::arith::SIToFPOp>(
+                                            j_loc,
+                                            j_builder.getF64Type(),
+                                            j_i64
+                                        );
+                                        
+                                        // 计算随机值: (i * cols + j) / total
+                                        auto row_term = j_builder.create<mlir::arith::MulFOp>(
+                                            j_loc,
+                                            i_f64,
+                                            cols_val
+                                        );
+                                        
+                                        auto sum = j_builder.create<mlir::arith::AddFOp>(
+                                            j_loc,
+                                            row_term,
+                                            j_f64
+                                        );
+                                        
+                                        auto val = j_builder.create<mlir::arith::DivFOp>(
+                                            j_loc,
+                                            sum,
+                                            total
+                                        );
+
+                                        // 存储计算结果
+                                        j_builder.create<mlir::memref::StoreOp>(
+                                            j_loc,
+                                            val,
+                                            alloc,
+                                            mlir::ValueRange{i_val, j_val}
+                                        );
+                                    }
+
+                                    j_builder.create<mlir::scf::YieldOp>(j_loc);
+                                }
+                            );
+                            i_builder.create<mlir::scf::YieldOp>(i_loc);
+                        }
+                    );
+                    tile_j_builder.create<mlir::scf::YieldOp>(tile_j_loc);
                 }
             );
-            i_builder.create<mlir::scf::YieldOp>(i_loc);
+            tile_i_builder.create<mlir::scf::YieldOp>(tile_i_loc);
         }
     );
-    
+
     return alloc;
 }
 

@@ -4,6 +4,7 @@
 #include <vector>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 
 #ifdef __APPLE__
 #include <mach/mach.h>
@@ -76,8 +77,8 @@ private:
             file << result.name << ","
                  << result.language << ","
                  << result.size << ","
-                 << result.time_ms << ","
-                 << result.memory_kb << "\n";
+                 << std::fixed << std::setprecision(2) << result.time_ms << ","
+                 << std::fixed << std::setprecision(2) << result.memory_kb << "\n";
         }
     }
 };

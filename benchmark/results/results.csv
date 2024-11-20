@@ -1,15 +1,20 @@
 name,language,size,time_ms,memory_kb
-matrix_multiplication,C++,64,0.159,120
-matrix_multiplication,C++,128,0.562,508
-matrix_multiplication,C++,256,2.042,1556
-matrix_multiplication,C++,512,12.596,2992
-matrix_multiplication,C++,1024,74.206,13060
-matrix_multiplication,Pure Python (Opt),64,51.07474327087402,116.0
-matrix_multiplication,Pure Python (Opt),128,317.659854888916,272.0
-matrix_multiplication,Pure Python (Opt),256,2944.328784942627,1280.0
-matrix_multiplication,Pure Python (Opt),512,18749.754905700684,3684.0
-matrix_multiplication,NumPy,64,0.2448558807373047,76.0
-matrix_multiplication,NumPy,128,0.2810955047607422,132.0
-matrix_multiplication,NumPy,256,0.5400180816650391,880.0
-matrix_multiplication,NumPy,512,3.679037094116211,5664.0
-matrix_multiplication,NumPy,1024,17.966747283935547,21520.0
+matrix_multiplication,C++,64,0.15,112.00
+matrix_multiplication,C++,128,0.54,508.00
+matrix_multiplication,C++,256,1.74,1636.00
+matrix_multiplication,C++,512,7.77,3140.00
+matrix_multiplication,C++,1024,47.69,12744.00
+matrix_multiplication,Pure Python (Opt),64,42.88673400878906,116.0
+matrix_multiplication,Pure Python (Opt),128,329.14209365844727,248.0
+matrix_multiplication,Pure Python (Opt),256,2543.6201095581055,1376.0
+matrix_multiplication,Pure Python (Opt),512,20943.293809890747,3668.0
+matrix_multiplication,NumPy,64,0.36597251892089844,92.0
+matrix_multiplication,NumPy,128,0.3237724304199219,132.0
+matrix_multiplication,NumPy,256,4.526853561401367,880.0
+matrix_multiplication,NumPy,512,10.98489761352539,5664.0
+matrix_multiplication,NumPy,1024,14.465093612670898,21520.0
+matrix_multiplication,Boas,64,,12
+matrix_multiplication,Boas,128,,0
+matrix_multiplication,Boas,256,,0
+matrix_multiplication,Boas,512,,0
+matrix_multiplication,Boas,1024,,0
