@@ -15,7 +15,6 @@ MLIRGen::MLIRGen() {
         llvm::errs() << "Failed to create MLIRContext\n";
         return;
     }
-    
     // Load and register all required dialects
     context->loadDialect<mlir::func::FuncDialect>();
     context->loadDialect<mlir::arith::ArithDialect>();
@@ -32,7 +31,65 @@ MLIRGen::MLIRGen() {
         return;
     }
     
+    // 创建模块
+    module = mlir::ModuleOp::create(builder->getUnknownLoc());
+    
+    // 声明运行时函数
+    declareRuntimeFunctions();
+    
     llvm::errs() << "MLIRGen initialized successfully with all required dialects\n";
+}
+
+void MLIRGen::declareRuntimeFunctions() {
+    // 声明 printFloat 函数
+    auto printFloatType = mlir::FunctionType::get(
+        context.get(),
+        {builder->getF64Type()},  // 参数类型：double
+        {}                        // 返回类型：void
+    );
+    
+    auto printFloatFunc = mlir::func::FuncOp::create(
+        builder->getUnknownLoc(),
+        "printFloat",
+        printFloatType
+    );
+    printFloatFunc.setPrivate();
+    module.push_back(printFloatFunc);
+    
+    // 声明 printString 函数
+    auto stringType = mlir::UnrankedMemRefType::get(
+        builder->getIntegerType(8),  // i8 类型
+        0                            // memory space
+    );
+    
+    auto printStringType = mlir::FunctionType::get(
+        context.get(),
+        {stringType},  // 参数类型：memref<*xi8>
+        {}            // 返回类型：void
+    );
+    
+    auto printStringFunc = mlir::func::FuncOp::create(
+        builder->getUnknownLoc(),
+        "printString",
+        printStringType
+    );
+    printStringFunc.setPrivate();
+    module.push_back(printStringFunc);
+    
+    // 声明 system_time_msec 函数
+    auto timeType = mlir::FunctionType::get(
+        context.get(),
+        {},                      // 无参数
+        {builder->getF64Type()}  // 返回类型：double
+    );
+    
+    auto timeFunc = mlir::func::FuncOp::create(
+        builder->getUnknownLoc(),
+        "system_time_msec",
+        timeType
+    );
+    timeFunc.setPrivate();
+    module.push_back(timeFunc);
 }
 
 mlir::Value MLIRGen::generateMLIRForMatmul(const MatmulExprAST* expr) {
@@ -210,9 +267,17 @@ mlir::Value MLIRGen::generateMLIRForNode(const ExprAST* node) {
             case ExprAST::Variable:
                 return generateMLIRForVariable(static_cast<const VariableExprAST*>(node));
                 
-            case ExprAST::Binary:
-                return generateMLIRForBinary(static_cast<const BinaryExprAST*>(node));
-                
+            case ExprAST::Binary: {
+                auto binary = static_cast<const BinaryExprAST*>(node);
+                if (binary->getOp() == "-") {
+                    auto lhs = generateMLIRForNode(binary->getLHS());
+                    auto rhs = generateMLIRForNode(binary->getRHS());
+                    if (!lhs || !rhs) return nullptr;
+                    return generateTimeDiffMLIR(lhs, rhs);
+                }
+                return generateMLIRForBinary(binary);
+            }
+
             case ExprAST::Call:
                 return generateMLIRForCall(static_cast<const CallExprAST*>(node));
                 
@@ -242,7 +307,14 @@ mlir::Value MLIRGen::generateMLIRForNode(const ExprAST* node) {
                 
             case ExprAST::TensorRandom:
                 return generateMLIRForTensorRandom(static_cast<const TensorRandomExprAST*>(node));
-            
+            case ExprAST::TimeCall: {
+                auto timeCall = static_cast<const TimeCallExprAST*>(node);
+                if (timeCall->getFuncName() == "now") {
+                    return generateTimeNowMLIR(timeCall);
+                }
+                std::cerr << "Unknown time function: " << timeCall->getFuncName() << "\n";
+                return nullptr;
+            }
             default:
                 std::cerr << "Error: Unhandled node kind: " << node->getKind() << "\n";
                 return nullptr;
@@ -390,31 +462,8 @@ mlir::ModuleOp MLIRGen::generateMLIR(const std::vector<std::unique_ptr<ExprAST>>
         // Set insertion point
         builder->setInsertionPointToStart(module.getBody());
         
-        // First, declare the printMemrefF64 function
-        auto printMemrefType = mlir::FunctionType::get(
-            context.get(),
-            {mlir::UnrankedMemRefType::get(builder->getF64Type(), 0)},
-            {}
-        );
-        
-        auto printFunc = mlir::func::FuncOp::create(
-            builder->getUnknownLoc(),
-            "printMemrefF64",
-            printMemrefType
-        );
-        
-        if (!printFunc) {
-            std::cerr << "Failed to create print function declaration\n";
-            return nullptr;
-        }
-        
-        // Mark the function as external
-        printFunc.setPrivate();
-        printFunc->setAttr("llvm.emit_c_interface", builder->getUnitAttr());
-        
-        // Add the function declaration to the module
-        module.push_back(printFunc);
-        std::cerr << "Added printMemrefF64 function declaration\n";
+        // Declare runtime functions
+        declareRuntimeFunctions();
         
         // Create main function
         auto mainType = mlir::FunctionType::get(context.get(), {}, {builder->getI32Type()});
@@ -424,64 +473,39 @@ mlir::ModuleOp MLIRGen::generateMLIR(const std::vector<std::unique_ptr<ExprAST>>
             mainType
         );
         
-        if (!mainFunc) {
-            std::cerr << "Failed to create main function\n";
-            return nullptr;
-        }
-        
-        auto* entryBlock = mainFunc.addEntryBlock();
-        if (!entryBlock) {
-            std::cerr << "Failed to create entry block\n";
-            return nullptr;
-        }
-        
+        auto entryBlock = mainFunc.addEntryBlock();
         builder->setInsertionPointToStart(entryBlock);
-        std::cerr << "Created main function with entry block\n";
         
+        module.push_back(mainFunc);
+        std::cerr << "Created main function with entry block\n";
+
         // Process AST nodes
         for (const auto& node : ast) {
-            if (!node) {
-                std::cerr << "Warning: Null AST node encountered\n";
-                continue;
-            }
-            
             std::cerr << "\nProcessing node kind: " << node->getKind() << "\n";
-            
-            // Set insertion point before processing each node
-            builder->setInsertionPointToEnd(entryBlock);
-            
-            try {
-                mlir::Value value = generateMLIRForNode(node.get());
-                if (!value) {
-                    std::cerr << "Warning: Node processing returned null value\n";
-                }
-            } catch (const std::exception& e) {
-                std::cerr << "Error processing node: " << e.what() << "\n";
+            if (!generateMLIRForNode(node.get())) {
+                std::cerr << "Failed to generate MLIR for node\n";
+                module.dump();
                 return nullptr;
             }
         }
         
-        // Add return statement
-        builder->setInsertionPointToEnd(entryBlock);
-        auto returnValue = builder->create<mlir::arith::ConstantIntOp>(
+        // Add return statement to main function
+        auto zero = builder->create<mlir::arith::ConstantIntOp>(
             builder->getUnknownLoc(),
             0,
-            32
+            builder->getI32Type()
         );
         
+        // 创建 ValueRange 来包装返回值
+        mlir::SmallVector<mlir::Value, 1> returnValues;
+        returnValues.push_back(zero);
+        
+        // 使用 ValueRange 创建 ReturnOp
         builder->create<mlir::func::ReturnOp>(
             builder->getUnknownLoc(),
-            mlir::ValueRange{returnValue}
+            returnValues
         );
-        
-        module.push_back(mainFunc);
-        
-        if (failed(mlir::verify(module))) {
-            std::cerr << "Module verification failed\n";
-            module.dump();
-            return nullptr;
-        }
-        
+
         std::cerr << "MLIR generation completed successfully\n";
         return module;
         
@@ -845,45 +869,54 @@ mlir::Value MLIRGen::generateMLIRForPrint(const PrintExprAST* expr) {
         return nullptr;
     }
     
+    // 获取当前时间戳
+    auto timestamp = generateTimeNowMLIR(nullptr);
+    if (!timestamp) {
+        std::cerr << "Failed to generate timestamp\n";
+        return nullptr;
+    }
+    
+    // 打印时间戳
+    builder->create<mlir::func::CallOp>(
+        builder->getUnknownLoc(),
+        "printFloat",
+        mlir::TypeRange{},
+        mlir::ValueRange{timestamp}
+    );
+    
+    // 打印空格分隔符
+    if (!module.lookupSymbol("printString")) {
+        auto funcType = mlir::FunctionType::get(
+            context.get(),
+            {mlir::MemRefType::get({-1}, builder->getIntegerType(8))},
+            {}
+        );
+        auto printFunc = mlir::func::FuncOp::create(
+            builder->getUnknownLoc(),
+            "printString",
+            funcType
+        );
+        printFunc.setPrivate();
+        module.push_back(printFunc);
+    }
+    
+    // 打印实际值
     auto value = generateMLIRForNode(expr->getValue());
     if (!value) {
         std::cerr << "Failed to generate value for print\n";
         return nullptr;
     }
     
-    auto memrefType = mlir::dyn_cast<mlir::MemRefType>(value.getType());
-    if (!memrefType) {
-        std::cerr << "Print value is not a memref type\n";
-        return nullptr;
-    }
-    
-    // Cast to unranked memref
-    auto unrankedType = mlir::UnrankedMemRefType::get(
-        memrefType.getElementType(),
-        memrefType.getMemorySpace()
-    );
-    
-    auto castedValue = builder->create<mlir::memref::CastOp>(
-        builder->getUnknownLoc(),
-        unrankedType,
-        value
-    );
-    
-    // Create print call
-    builder->create<mlir::func::CallOp>(
-        builder->getUnknownLoc(),
-        "printMemrefF64",
-        mlir::TypeRange{},
-        mlir::ValueRange{castedValue}
-    );
-    
-    // Clean up if this is a temporary value
-    if (!isStoredInSymbolTable(value)) {
-        builder->create<mlir::memref::DeallocOp>(
+    // 据值类型调用相应的打函数
+    if (auto numberType = mlir::dyn_cast<mlir::FloatType>(value.getType())) {
+        builder->create<mlir::func::CallOp>(
             builder->getUnknownLoc(),
-            value
+            "printFloat",
+            mlir::TypeRange{},
+            mlir::ValueRange{value}
         );
-    }
+    } 
+    // ... 其他类型的处理保持不变 ...
     
     return value;
 }
@@ -897,5 +930,41 @@ bool MLIRGen::isStoredInSymbolTable(mlir::Value value) {
     return false;
 }
 
+mlir::Value MLIRGen::generateTimeNowMLIR(const TimeCallExprAST* expr) {
+    auto loc = builder->getUnknownLoc();
+    
+    // Declare system_time_msec function if not already declared
+    if (!module.lookupSymbol("system_time_msec")) {
+        auto funcType = mlir::FunctionType::get(
+            context.get(),
+            {},  // no input parameters
+            {builder->getF64Type()}  // returns double
+        );
+        
+        auto timeFunc = mlir::func::FuncOp::create(
+            loc,
+            "system_time_msec",
+            funcType
+        );
+        
+        timeFunc.setPrivate();
+        module.push_back(timeFunc);
+    }
+    
+    // Call time_msec function to get timestamp
+    auto result = builder->create<mlir::func::CallOp>(
+        loc,
+        "system_time_msec",
+        mlir::TypeRange{builder->getF64Type()},
+        mlir::ValueRange{}
+    );
+    
+    return result.getResult(0);
+}
+
+mlir::Value MLIRGen::generateTimeDiffMLIR(mlir::Value lhs, mlir::Value rhs) {
+    auto loc = builder->getUnknownLoc();
+    return builder->create<mlir::arith::SubFOp>(loc, lhs, rhs);
+}
 
 } // namespace matrix

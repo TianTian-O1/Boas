@@ -33,7 +33,8 @@ public:
         Assignment,
         TensorCreate,
         Matmul,
-        TensorRandom  // Add this new kind
+        TensorRandom,  // Add this new kind
+        TimeCall
     };
     
     virtual Kind getKind() const = 0;
@@ -49,6 +50,27 @@ protected:
         for (int i = 0; i < level; ++i) std::cout << "  ";
     }
 };
+
+
+class TimeCallExprAST : public ExprAST {
+    std::string func_name;  // 函数名（如 "now"）
+public:
+    TimeCallExprAST(const std::string& name) : func_name(name) {}
+    
+    const std::string& getFuncName() const { return func_name; }
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        std::cout << "time." << func_name << "()";
+    }
+    
+    Kind getKind() const override { return Kind::TimeCall; }
+    
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::TimeCall;
+    }
+};
+
 
 // 数组表达式
 class ArrayExprAST : public ExprAST {

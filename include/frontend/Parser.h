@@ -38,6 +38,8 @@ private:
     std::unique_ptr<AssignmentExprAST> parseAssignment();
     std::unique_ptr<ExprAST> parseTensorCreate();
     std::unique_ptr<ExprAST> parseTensorRandom();
+    std::unique_ptr<ExprAST> parseTimeExpr();
+    std::unique_ptr<ExprAST> parseBinaryExpr(std::unique_ptr<ExprAST> lhs);
     
     // 错误处理
     std::unique_ptr<ExprAST> LogError(const std::string &str);

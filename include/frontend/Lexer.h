@@ -30,10 +30,13 @@ enum TokenKind {
     tok_dot = -20,
     tok_return = -21,
     tok_linalg = -22,
-    tok_create = -23,       // Added create token
-    tok_random = -24,       // Added random token
-    tok_left_brace = -25,   // Added left brace token
-    tok_right_brace = -26   // Added right brace token
+    tok_create = -23,       
+    tok_random = -24,       
+    tok_left_brace = -25,   
+    tok_right_brace = -26,  
+    tok_time = -27,     // For 'time' keyword
+    tok_now = -28,      // For 'now' function
+    tok_minus = -29     // For subtraction operation '-'
 };
 
 struct Token {

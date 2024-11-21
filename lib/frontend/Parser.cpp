@@ -210,6 +210,7 @@ std::unique_ptr<ImportAST> Parser::parseImport() {
               
     // Allow both identifiers and certain keywords as module names
     if (current_token_.kind != tok_identifier && 
+        current_token_.kind != tok_time &&  // Allow 'time' as module name
         current_token_.kind != tok_tensor &&  // Allow 'tensor' as module name
         current_token_.kind != tok_matmul) {  // Allow 'matmul' as module name
         Debug::log(DEBUG_PARSER, "Expected module name after import");
@@ -277,46 +278,10 @@ std::unique_ptr<ImportAST> Parser::parseFromImport() {
     return std::make_unique<ImportAST>(moduleName, funcName);
 }
 
-std::unique_ptr<ExprAST> Parser::parsePrimary() {
-    Debug::log(DEBUG_PARSER, "Parsing primary expression");
-    switch (current_token_.kind) {
-        case tok_identifier:
-            return parseIdentifierExpr();
-        case tok_number:
-            return parseNumber();
-        case tok_left_paren:
-            return parseParenExpr();
-        case tok_tensor:
-            return parseTensorExpr();
-        case tok_matmul:
-            return parseMatmulExpr();
-        case tok_print:
-            return parsePrintExpr();
-        default:
-            Debug::log(DEBUG_PARSER, ("Unknown token when expecting an expression: kind=" + 
-                      std::to_string(current_token_.kind) + ", value='" + 
-                      current_token_.value + "'").c_str());
-            return nullptr;
-    }
-}
-
-std::unique_ptr<ExprAST> Parser::parseExpression() {
-    Debug::log(DEBUG_PARSER, "Parsing expression");
-    auto lhs = parsePrimary();
-    if (!lhs) return nullptr;
-    
-    return parseExpressionRHS(std::move(lhs));
-}
-
 std::unique_ptr<ExprAST> Parser::parseIdentifier() {
     std::string name = current_token_.value;
     getNextToken(); // eat identifier
     return std::make_unique<VariableExprAST>(name);
-}
-
-std::unique_ptr<ExprAST> Parser::parseExpressionRHS(std::unique_ptr<ExprAST> lhs) {
-    // 暂时只返回 lhs，后续可以添加运算符优先级处理
-    return std::move(lhs);
 }
 
 std::unique_ptr<ExprAST> Parser::parseNumber() {
@@ -577,6 +542,96 @@ std::unique_ptr<ExprAST> Parser::parsePrintExpr() {
     getNextToken();
     
     return std::make_unique<PrintExprAST>(std::move(expr));
+}
+
+// In Parser.cpp
+
+std::unique_ptr<ExprAST> Parser::parseTimeExpr() {
+    Debug::log(DEBUG_PARSER, "Parsing time expression");
+     getNextToken(); // eat 'time'
+    
+    if (current_token_.kind != tok_dot) {
+        return LogError("Expected '.' after 'time'");
+    }
+    getNextToken(); // eat '.'
+
+    if (current_token_.kind != tok_now) {
+        return LogError("Expected 'now' after 'time.'");
+    }
+    std::string funcName = current_token_.value;
+    getNextToken(); // eat function name
+    
+    if (current_token_.kind != tok_left_paren) {
+        return LogError("Expected '(' after time function name");
+    }
+    getNextToken(); // eat '('
+    
+    if (current_token_.kind != tok_right_paren) {
+        return LogError("Expected ')' for time function call");
+    }
+    getNextToken(); // eat ')'
+    
+    return std::make_unique<TimeCallExprAST>(funcName);
+}
+
+std::unique_ptr<ExprAST> Parser::parseExpression() {
+    Debug::log(DEBUG_PARSER, "Parsing expression");
+    auto lhs = parsePrimary();
+    if (!lhs) return nullptr;
+    
+    return parseExpressionRHS(std::move(lhs));
+}
+
+std::unique_ptr<ExprAST> Parser::parseExpressionRHS(std::unique_ptr<ExprAST> lhs) {
+    while (true) {
+        if (current_token_.kind != tok_minus) {
+            return lhs;
+        }
+        
+        std::string op = current_token_.value;
+        getNextToken(); // eat operator
+        
+        auto rhs = parsePrimary();
+        if (!rhs) return nullptr;
+        
+        lhs = std::make_unique<BinaryExprAST>(std::move(lhs), std::move(rhs), op);
+    }
+}
+
+std::unique_ptr<ExprAST> Parser::parsePrimary() {
+    Debug::log(DEBUG_PARSER, "Parsing primary expression");
+    
+    switch (current_token_.kind) {
+        case tok_identifier:
+            return parseIdentifierExpr();
+            
+        case tok_number:
+            return parseNumber();
+            
+        case tok_left_paren:
+            return parseParenExpr();
+            
+        case tok_left_bracket:
+            return parseArrayLiteral();
+            
+        case tok_tensor:
+            return parseTensorExpr();
+            
+        case tok_matmul:
+            return parseMatmulExpr();
+            
+        case tok_print:
+            return parsePrintExpr();
+            
+        case tok_time:
+            return parseTimeExpr();
+            
+        default:
+            Debug::log(DEBUG_PARSER, ("Unknown token when expecting an expression: kind=" + 
+                      std::to_string(current_token_.kind) + ", value='" + 
+                      current_token_.value + "'").c_str());
+            return LogError("Expected expression");
+    }
 }
 
 } // namespace matrix

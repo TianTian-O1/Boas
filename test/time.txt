@@ -1,0 +1,60 @@
+
+import time
+import tensor
+
+
+def main():
+    
+    start1 = time.now()
+    # 创建随机矩阵
+    A = tensor.random(64)
+    B = tensor.random(64)
+    
+    # 执行矩阵乘法
+    C = tensor.matmul(A,B)
+    start2 = time.now()
+
+    print(start2 - start1)
+
+     # 创建随机矩阵
+    D = tensor.random(size, size)
+    E = tensor.random(size, size)
+    
+    # 执行矩阵乘法
+    F = tensor.matmul(A, B)
+
+    start3 = time.now()
+
+    print(start3 - start2)
+
+     # 创建随机矩阵
+    G = tensor.random(size, size)
+    H = tensor.random(size, size)
+    
+    # 执行矩阵乘法
+    I = tensor.matmul(A, B)
+
+    start4 = time.now()
+
+    print(start4 - start3)
+
+     # 创建随机矩阵
+    J = tensor.random(size, size)
+    K = tensor.random(size, size)
+    
+    # 执行矩阵乘法
+    L = tensor.matmul(A, B)
+
+    start5 = time.now()
+
+    print(start5 - start4)
+
+     # 创建随机矩阵
+    M = tensor.random(size, size)
+    N = tensor.random(size, size)
+    
+    # 执行矩阵乘法
+    O = tensor.matmul(A, B)
+    start6 = time.now()
+
+    print(start6 - start5)

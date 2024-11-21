@@ -1,20 +1,20 @@
 name,language,size,time_ms,memory_kb
-matrix_multiplication,C++,64,0.15,112.00
-matrix_multiplication,C++,128,0.54,508.00
-matrix_multiplication,C++,256,1.74,1636.00
-matrix_multiplication,C++,512,7.77,3140.00
-matrix_multiplication,C++,1024,47.69,12744.00
-matrix_multiplication,Pure Python (Opt),64,42.88673400878906,116.0
-matrix_multiplication,Pure Python (Opt),128,329.14209365844727,248.0
-matrix_multiplication,Pure Python (Opt),256,2543.6201095581055,1376.0
-matrix_multiplication,Pure Python (Opt),512,20943.293809890747,3668.0
-matrix_multiplication,NumPy,64,0.36597251892089844,92.0
-matrix_multiplication,NumPy,128,0.3237724304199219,132.0
-matrix_multiplication,NumPy,256,4.526853561401367,880.0
-matrix_multiplication,NumPy,512,10.98489761352539,5664.0
-matrix_multiplication,NumPy,1024,14.465093612670898,21520.0
-matrix_multiplication,Boas,64,,12
-matrix_multiplication,Boas,128,,0
-matrix_multiplication,Boas,256,,0
-matrix_multiplication,Boas,512,,0
-matrix_multiplication,Boas,1024,,0
+matrix_multiplication,C++,64,0.18,112.00
+matrix_multiplication,C++,128,0.64,516.00
+matrix_multiplication,C++,256,2.07,1620.00
+matrix_multiplication,C++,512,9.19,3236.00
+matrix_multiplication,C++,1024,42.25,12580.00
+matrix_multiplication,Pure Python (Opt),64,35.83574295043945,116.0
+matrix_multiplication,Pure Python (Opt),128,331.8331241607666,272.0
+matrix_multiplication,Pure Python (Opt),256,2649.7249603271484,1408.0
+matrix_multiplication,Pure Python (Opt),512,20641.307830810547,3648.0
+matrix_multiplication,NumPy,64,1.3027191162109375,76.0
+matrix_multiplication,NumPy,128,2.4051666259765625,132.0
+matrix_multiplication,NumPy,256,0.5838871002197266,880.0
+matrix_multiplication,NumPy,512,3.551006317138672,5664.0
+matrix_multiplication,NumPy,1024,12.969970703125,21520.0
+matrix_multiplication,Boas,64,2.000093460083008,5380.0
+matrix_multiplication,Boas,128,6.999969482421875,5380.0
+matrix_multiplication,Boas,256,59.999942779541016,5380.0
+matrix_multiplication,Boas,512,519.9999809265137,5380.0
+matrix_multiplication,Boas,1024,5807.000160217285,5380.0

@@ -42,7 +42,21 @@ add_definitions(
     -DLLC_PATH="${LLC}"
     -DCLANG_PATH="${CLANG}"
     -DLLVM_INSTALL_PATH="${LLVM_INSTALL_PREFIX}"
+    -DPROJECT_ROOT="${CMAKE_SOURCE_DIR}"
 )
+
+# 创建运行时库
+add_library(matrix-runtime SHARED
+    lib/runtime/PrintUtils.cpp
+)
+
+# 设置运行时库的输出目录
+set_target_properties(matrix-runtime PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+)
+
 
 # 添加源文件
 add_library(matrix-lib

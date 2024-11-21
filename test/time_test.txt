@@ -1,0 +1,4 @@
+import tensor
+
+def main():
+    print(2)

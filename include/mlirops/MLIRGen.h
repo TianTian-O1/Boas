@@ -7,6 +7,8 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Verifier.h"
+#include "mlir/IR/Value.h"
+#include "mlir/IR/SymbolTable.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"        // SCF dialect
@@ -14,6 +16,7 @@
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "llvm/ADT/APFloat.h"
 
 namespace matrix {
 
@@ -36,6 +39,11 @@ private:
 
     // Debugging helper
     void dumpState(const std::string& message);
+
+    // Time related methods
+    mlir::Value generateTimeNowMLIR(const TimeCallExprAST* expr);
+    mlir::Value generateTimeDiffMLIR(mlir::Value lhs, mlir::Value rhs);
+    mlir::Value convertToMilliseconds(mlir::Value seconds);
 
     // AST node handlers
     mlir::Value generateMLIRForNode(const ExprAST* node);
@@ -72,6 +80,8 @@ private:
     mlir::Value createVectorizedMatmul(mlir::Value lhs, mlir::Value rhs, const MatmulExprAST* expr);
     void optimizeMemoryAccess(mlir::Operation* op);
     void addTilingAttributes(mlir::Operation* op, int64_t tileSize);
+
+    void declareRuntimeFunctions();
 };
 
 } // namespace matrix

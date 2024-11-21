@@ -73,7 +73,9 @@ Token Lexer::getNextToken() {
             {"import", tok_import},
             {"from", tok_from},
             {"return", tok_return},
-            {"linalg", tok_linalg}
+            {"linalg", tok_linalg},
+            {"time", tok_time},
+            {"now", tok_now}
         };
         
         auto it = keywords.find(identifier);
@@ -100,6 +102,7 @@ Token Lexer::getNextToken() {
         case ')': return createToken(tok_right_paren, ")");
         case ':': return createToken(tok_colon, ":");
         case '.': return createToken(tok_dot, ".");
+        case '-': return createToken(tok_minus, "-");
         default: return createToken(tok_eof, std::string(1, currentChar));
     }
 }
@@ -131,12 +134,14 @@ std::string tokenKindToString(TokenKind kind) {
         {tok_create, "CREATE"},
         {tok_random, "RANDOM"},
         {tok_left_brace, "LBRACE"},
-        {tok_right_brace, "RBRACE"}
+        {tok_right_brace, "RBRACE"},
+        {tok_time, "TIME"},
+        {tok_now, "NOW"},
+        {tok_minus, "MINUS"}
     };
     
     auto it = tokenNames.find(kind);
     return it != tokenNames.end() ? it->second : "UNKNOWN";
 }
-
 
 } // namespace matrix

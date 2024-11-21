@@ -51,6 +51,12 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
     std::string clangPath = stripQuotes(CLANG_PATH);
     std::string llvmInstallPath = stripQuotes(LLVM_INSTALL_PATH);
     
+    // 获取项目根目录
+    std::string projectRoot = workDir;
+    if (workDir.length() >= 6 && workDir.substr(workDir.length() - 6) == "/build") {
+        projectRoot = workDir.substr(0, workDir.length() - 6);
+    }
+    
     std::cout << "\n=== Starting MLIR optimization pipeline ===\n";
     
     // Write MLIR to temporary file
@@ -126,16 +132,19 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
     // Final compilation with clang
     std::string clangCmd = "\"" + clangPath + "\"" + 
         " " + sPath + 
-        " -O3" +                           // 最高优化级别
-        " -march=native" +                 // 使用本机 CPU 特性
-        " -ffast-math" +                   // 启用快速数学
-        " -fno-math-errno" +              // 禁用数学错误检查
-        " -fno-trapping-math" +           // 禁用浮点陷阱
-        " -ffinite-math-only" +           // 假设没有无穷和NaN
-        " -mllvm -force-vector-width=8" +  // 强制向量宽度
-        " -mllvm -force-vector-interleave=4" +  // 向量交织
+        " -O3" +                           
+        " -march=native" +                 
+        " -ffast-math" +                   
+        " -fno-math-errno" +              
+        " -fno-trapping-math" +           
+        " -ffinite-math-only" +           
+        " -mllvm -force-vector-width=8" +  
+        " -mllvm -force-vector-interleave=4" +  
         " -L" + llvmInstallPath + "/lib" +
+        " -L" + projectRoot + "/build/lib" +  // 使用变量而不是宏
         " -Wl,-rpath," + llvmInstallPath + "/lib" +
+        " -Wl,-rpath," + projectRoot + "/build/lib" +  // 使用变量而不是宏
+        " -lmatrix-runtime" +
         " -lmlir_runner_utils" +
         " -lmlir_c_runner_utils" +
         " -lmlir_float16_utils" +
@@ -168,7 +177,7 @@ int main(int argc, char* argv[]) {
     try {
         // Check the current directory
         std::string workDir = std::filesystem::current_path().string();
-        std::string projectRoot = workDir;
+        std::string projectRoot = LLVM_INSTALL_PATH;
         if (workDir.length() >= 6 && workDir.substr(workDir.length() - 6) == "/build") {
             projectRoot = workDir.substr(0, workDir.length() - 6);
         }
