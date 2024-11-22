@@ -7,9 +7,10 @@
 #include <iomanip>
 #include <sstream>
 #include <cmath>
+#include <vector>
+#include <deque>
 
 namespace {
-    // 获取当前时间戳的格式化字符串
     std::string getCurrentTimestamp() {
         auto now = std::chrono::system_clock::now();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -26,61 +27,76 @@ namespace {
         return oss.str();
     }
 
-    // 打印矩阵相关的全局状态
-    struct PrintState {
-        int count = 0;          // 当前打印的元素计数
-        int totalElements = 0;  // 矩阵总元素数
-        int matrixSize = 0;     // 矩阵维度（假设是方阵）
-        bool headerPrinted = false; // 是否已打印矩阵头部
+    // Helper function to check if a value is exactly an integer
+    bool isExactInteger(double value) {
+        return std::abs(value - std::round(value)) < 1e-10;
+    }
+
+    // Helper function to check if a value is a benchmark marker
+    bool isBenchmarkMarker(double value) {
+        return isExactInteger(value) && value >= 1.0 && value <= 10.0 && 
+               value == std::floor(value);  // Must be whole number
+    }
+
+    // Simple printer for regular numbers
+    void printNumber(double value) {
+        printf("%s%8.4f\n", getCurrentTimestamp().c_str(), value);
+        fflush(stdout);
+    }
+
+    class BenchmarkTracker {
+    public:
+        void handleValue(double value) {
+            if (isBenchmarkMarker(value)) {
+                // This is a benchmark marker
+                int marker = static_cast<int>(value);
+                
+                if (marker % 2 == 1) {
+                    // Odd numbers are start markers
+                    printf("%s=== Starting benchmark case %d ===\n", 
+                           getCurrentTimestamp().c_str(), (marker + 1) / 2);
+                } else {
+                    // Even numbers are end markers
+                    printf("%s=== Completed benchmark case %d ===\n", 
+                           getCurrentTimestamp().c_str(), marker / 2);
+                    
+                    // Print time taken if we have a start time
+                    if (startTime > 0) {
+                        double duration = getCurrentTimeMs() - startTime;
+                        printf("%sTime taken: %.2f ms\n", 
+                               getCurrentTimestamp().c_str(), duration);
+                        startTime = 0;  // Reset for next benchmark
+                    }
+                }
+                
+                if (marker % 2 == 1) {
+                    // Start timing for odd numbers (start markers)
+                    startTime = getCurrentTimeMs();
+                }
+            } else {
+                // Regular number, just print it
+                printNumber(value);
+            }
+            fflush(stdout);
+        }
+
+    private:
+        double startTime = 0;
+
+        double getCurrentTimeMs() {
+            auto now = std::chrono::system_clock::now();
+            auto duration = now.time_since_epoch();
+            return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+        }
     };
 
-    static PrintState printState;
-
-    void resetPrintState() {
-        printState = PrintState();
-    }
+    static BenchmarkTracker benchmarkTracker;
 }
 
 extern "C" {
 
 void printFloat(double value) {
-    // 第一个数字表示总元素个数
-    if (printState.count == 0) {
-        printState.totalElements = static_cast<int>(value);
-        printState.matrixSize = static_cast<int>(sqrt(printState.totalElements));
-        printf("%sMatrix %dx%d:\n", getCurrentTimestamp().c_str(), 
-               printState.matrixSize, printState.matrixSize);
-        printf("[\n");
-        printState.headerPrinted = true;
-    } else {
-        // 打印矩阵元素
-        if ((printState.count - 1) % printState.matrixSize == 0) {
-            printf("  "); // 每行开始的缩进
-        }
-        
-        // 打印数字，使用固定宽度格式
-        printf("%8.4f", value);
-        
-        // 添加分隔符
-        if ((printState.count - 1) % printState.matrixSize == printState.matrixSize - 1) {
-            if (printState.count < printState.totalElements) {
-                printf(",\n"); // 行末，但不是最后一行
-            } else {
-                printf("\n"); // 最后一行
-            }
-        } else if (printState.count < printState.totalElements) {
-            printf(", "); // 同一行的元素之间
-        }
-        
-        // 检查是否是矩阵的最后一个元素
-        if (printState.count == printState.totalElements) {
-            printf("]\n"); // 关闭矩阵的方括号
-            resetPrintState(); // 重置状态，为下一个矩阵做准备
-        }
-    }
-    
-    printState.count++;
-    fflush(stdout);
+    benchmarkTracker.handleValue(value);
 }
 
 void printString(const char* str) {
@@ -90,21 +106,6 @@ void printString(const char* str) {
 
 void printInt(int64_t value) {
     printf("%s%lld\n", getCurrentTimestamp().c_str(), value);
-    fflush(stdout);
-}
-
-void printError(const char* message) {
-    printf("%sError: %s\n", getCurrentTimestamp().c_str(), message);
-    fflush(stdout);
-}
-
-void printDebug(const char* message) {
-    printf("%sDebug: %s\n", getCurrentTimestamp().c_str(), message);
-    fflush(stdout);
-}
-
-void printSeparator() {
-    printf("\n%s----------------------------------------\n", getCurrentTimestamp().c_str());
     fflush(stdout);
 }
 

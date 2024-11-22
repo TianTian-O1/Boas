@@ -798,74 +798,90 @@ mlir::Value MLIRGen::generateMLIRForPrint(const PrintExprAST* expr) {
         return nullptr;
     }
     
-    // Get the value to print
     auto value = generateMLIRForNode(expr->getValue());
     if (!value) {
         std::cerr << "Failed to generate value for print\n";
         return nullptr;
     }
     
-    // Print value based on its type
-    if (auto floatTy = mlir::dyn_cast<mlir::FloatType>(value.getType())) {
-        // For scalar floating point values
+    auto loc = builder->getUnknownLoc();
+    
+    // Handle different types
+    if (auto numberExpr = llvm::dyn_cast<mlir::arith::ConstantFloatOp>(
+            value.getDefiningOp())) {
+        // For constant float values (like benchmark markers)
         builder->create<mlir::func::CallOp>(
-            builder->getUnknownLoc(),
+            loc,
             "printFloat",
             mlir::TypeRange{},
             mlir::ValueRange{value}
         );
-    } else if (auto memrefTy = mlir::dyn_cast<mlir::MemRefType>(value.getType())) {
-        // For matrices/tensors
+    } else if (auto intConst = llvm::dyn_cast<mlir::arith::ConstantIntOp>(
+            value.getDefiningOp())) {
+        // For constant integer values
+        auto floatValue = builder->create<mlir::arith::SIToFPOp>(
+            loc,
+            builder->getF64Type(),
+            value
+        );
         
-        // Get dimensions
+        builder->create<mlir::func::CallOp>(
+            loc,
+            "printFloat",
+            mlir::TypeRange{},
+            mlir::ValueRange{floatValue}
+        );
+    } else if (auto memrefTy = mlir::dyn_cast<mlir::MemRefType>(value.getType())) {
+        // For matrices/tensors, print all values
         auto shape = memrefTy.getShape();
         int64_t rows = shape[0];
         int64_t cols = shape.size() > 1 ? shape[1] : 1;
         
-        // Create loop bounds
-        auto zero = createConstantIndex(0);
-        auto rowsVal = createConstantIndex(rows);
-        auto colsVal = createConstantIndex(cols);
-        auto step = createConstantIndex(1);
+        // Create nested loops to iterate through the matrix
+        auto lb = builder->create<mlir::arith::ConstantIndexOp>(loc, 0);
+        auto ub_rows = builder->create<mlir::arith::ConstantIndexOp>(loc, rows);
+        auto ub_cols = builder->create<mlir::arith::ConstantIndexOp>(loc, cols);
+        auto step = builder->create<mlir::arith::ConstantIndexOp>(loc, 1);
         
-        // Print dimensions as header
-        auto dimsHeader = createConstantF64(rows * cols);
-        builder->create<mlir::func::CallOp>(
-            builder->getUnknownLoc(),
-            "printFloat",
-            mlir::TypeRange{},
-            mlir::ValueRange{dimsHeader}
-        );
-        
-        // Create nested loops to print matrix elements
+        // Outer loop for rows
         builder->create<mlir::scf::ForOp>(
-            builder->getUnknownLoc(), zero, rowsVal, step,
+            loc, lb, ub_rows, step,
             mlir::ValueRange{},
             [&](mlir::OpBuilder& nested, mlir::Location loc, mlir::Value i, mlir::ValueRange args) {
+                // Inner loop for columns
                 nested.create<mlir::scf::ForOp>(
-                    loc, zero, colsVal, step,
+                    loc, lb, ub_cols, step,
                     mlir::ValueRange{},
-                    [&](mlir::OpBuilder& inner, mlir::Location inner_loc, mlir::Value j, mlir::ValueRange inner_args) {
-                        // Load matrix element
+                    [&](mlir::OpBuilder& inner, mlir::Location loc, mlir::Value j, mlir::ValueRange inner_args) {
+                        // Load value at current position
                         auto element = inner.create<mlir::memref::LoadOp>(
-                            inner_loc,
+                            loc,
                             value,
                             mlir::ValueRange{i, j}
                         );
                         
-                        // Print element
+                        // Print the element
                         inner.create<mlir::func::CallOp>(
-                            inner_loc,
+                            loc,
                             "printFloat",
                             mlir::TypeRange{},
                             mlir::ValueRange{element}
                         );
                         
-                        inner.create<mlir::scf::YieldOp>(inner_loc);
+                        inner.create<mlir::scf::YieldOp>(loc);
                     }
                 );
                 nested.create<mlir::scf::YieldOp>(loc);
             }
+        );
+        
+    } else if (auto floatTy = mlir::dyn_cast<mlir::FloatType>(value.getType())) {
+        // For other float values
+        builder->create<mlir::func::CallOp>(
+            loc,
+            "printFloat", 
+            mlir::TypeRange{},
+            mlir::ValueRange{value}
         );
     } else {
         std::cerr << "Unsupported type for print\n";
