@@ -107,6 +107,7 @@ void MLIRGen::declareRuntimeFunctions() {
     module.push_back(randomFunc);
 }
 
+
 mlir::Value MLIRGen::generateMLIRForMatmul(const MatmulExprAST* expr) {
     std::cerr << "[DEBUG] Generating matrix multiplication\n";
     
@@ -135,10 +136,6 @@ mlir::Value MLIRGen::generateMLIRForMatmul(const MatmulExprAST* expr) {
         return nullptr;
     }
 
-    // 创建一维数组类型的memref
-    auto flatType = mlir::MemRefType::get({M * N}, builder->getF64Type());
-    auto result = builder->create<mlir::memref::AllocOp>(builder->getUnknownLoc(), flatType);
-
     // 创建常量
     auto c0 = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), 0);
     auto c1 = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), 1);
@@ -152,6 +149,32 @@ mlir::Value MLIRGen::generateMLIRForMatmul(const MatmulExprAST* expr) {
         builder->getF64Type()
     );
 
+    // 创建结果矩阵
+    auto resultType = mlir::MemRefType::get({M, N}, builder->getF64Type());
+    auto result = builder->create<mlir::memref::AllocOp>(builder->getUnknownLoc(), resultType);
+
+    // 初始化结果矩阵为0
+    builder->create<mlir::scf::ForOp>(
+        builder->getUnknownLoc(), c0, cM, c1,
+        mlir::ValueRange{},
+        [&](mlir::OpBuilder& i_builder, mlir::Location i_loc, mlir::Value i, mlir::ValueRange) {
+            i_builder.create<mlir::scf::ForOp>(
+                i_loc, c0, cN, c1,
+                mlir::ValueRange{},
+                [&](mlir::OpBuilder& j_builder, mlir::Location j_loc, mlir::Value j, mlir::ValueRange) {
+                    j_builder.create<mlir::memref::StoreOp>(
+                        j_loc,
+                        zero,
+                        result,
+                        mlir::ValueRange{i, j}
+                    );
+                    j_builder.create<mlir::scf::YieldOp>(j_loc);
+                }
+            );
+            i_builder.create<mlir::scf::YieldOp>(i_loc);
+        }
+    );
+
     // 主计算循环
     builder->create<mlir::scf::ForOp>(
         builder->getUnknownLoc(), c0, cM, c1,
@@ -161,45 +184,42 @@ mlir::Value MLIRGen::generateMLIRForMatmul(const MatmulExprAST* expr) {
                 i_loc, c0, cN, c1,
                 mlir::ValueRange{},
                 [&](mlir::OpBuilder& j_builder, mlir::Location j_loc, mlir::Value j, mlir::ValueRange) {
-                    // 使用scf.for的iter_args进行累加
+                    // 内层累加循环
                     auto inner_loop = j_builder.create<mlir::scf::ForOp>(
                         j_loc, c0, cK, c1,
-                        mlir::ValueRange{zero},  // 初始累加值
+                        mlir::ValueRange{zero},
                         [&](mlir::OpBuilder& k_builder, mlir::Location k_loc, mlir::Value k, mlir::ValueRange k_args) {
-                            // 计算A的一维索引：i * K + k
-                            auto a_idx_1 = k_builder.create<mlir::arith::MulIOp>(k_loc, i, cK);
-                            auto a_idx = k_builder.create<mlir::arith::AddIOp>(k_loc, a_idx_1, k);
+                            // 加载A[i,k]
+                            auto a_val = k_builder.create<mlir::memref::LoadOp>(
+                                k_loc,
+                                lhs,
+                                mlir::ValueRange{i, k}
+                            );
+                            
+                            // 加载B[k,j]
+                            auto b_val = k_builder.create<mlir::memref::LoadOp>(
+                                k_loc,
+                                rhs,
+                                mlir::ValueRange{k, j}
+                            );
 
-                            // 计算B的一维索引：k * N + j
-                            auto b_idx_1 = k_builder.create<mlir::arith::MulIOp>(k_loc, k, cN);
-                            auto b_idx = k_builder.create<mlir::arith::AddIOp>(k_loc, b_idx_1, j);
-
-                            // 加载元素
-                            auto a_val = k_builder.create<mlir::memref::LoadOp>(k_loc, lhs, mlir::ValueRange{i, k});
-                            auto b_val = k_builder.create<mlir::memref::LoadOp>(k_loc, rhs, mlir::ValueRange{k, j});
-
-                            // 相乘
+                            // 计算乘积
                             auto mul = k_builder.create<mlir::arith::MulFOp>(k_loc, a_val, b_val);
 
                             // 累加
                             auto sum_iter = k_args[0];
                             auto new_sum = k_builder.create<mlir::arith::AddFOp>(k_loc, sum_iter, mul);
 
-                            // yield新的累加值
                             k_builder.create<mlir::scf::YieldOp>(k_loc, mlir::ValueRange{new_sum});
                         }
                     );
 
-                    // 计算C的一维索引：i * N + j
-                    auto c_idx_1 = j_builder.create<mlir::arith::MulIOp>(j_loc, i, cN);
-                    auto c_idx = j_builder.create<mlir::arith::AddIOp>(j_loc, c_idx_1, j);
-
-                    // 存储最终结果
+                    // 存储结果 C[i,j]
                     j_builder.create<mlir::memref::StoreOp>(
                         j_loc,
-                        inner_loop.getResult(0),  // 获取累加的最终结果
+                        inner_loop.getResult(0),
                         result,
-                        mlir::ValueRange{c_idx}
+                        mlir::ValueRange{i, j}
                     );
 
                     j_builder.create<mlir::scf::YieldOp>(j_loc);
@@ -209,7 +229,7 @@ mlir::Value MLIRGen::generateMLIRForMatmul(const MatmulExprAST* expr) {
         }
     );
 
-    // 清理临时操作数
+    // 清理原始操作数
     if (!isStoredInSymbolTable(lhs)) {
         builder->create<mlir::memref::DeallocOp>(builder->getUnknownLoc(), lhs);
     }
