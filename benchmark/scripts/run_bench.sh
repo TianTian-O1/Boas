@@ -77,9 +77,9 @@ fi
 
 # 运行Boas基准测试
 echo "Running Boas benchmarks..."
-cd ../src
-if [ -f "boas_bench.bs" ]; then
-    if [ -f "../../build/matrix-compiler" ]; then
+cd ../../  # 返回到项目根目录
+if [ -f "benchmark/src/boas_bench.bs" ]; then
+    if [ -f "build/matrix-compiler" ]; then
         echo "Executing program..."
         
         # 定义矩阵大小数组
@@ -87,11 +87,11 @@ if [ -f "boas_bench.bs" ]; then
         count=0
         
         # 运行程序并直接处理输出
-        ../../build/matrix-compiler --run boas_bench.bs 2>&1 | while read -r line; do
+        build/matrix-compiler --run benchmark/src/boas_bench.bs 2>&1 | while read -r line; do
             if [[ $line =~ "Time taken: "([0-9.]+)" ms" ]]; then
                 time_ms=${BASH_REMATCH[1]}
                 size=${sizes[$count]}
-                echo "matrix_multiplication,Boas,$size,$time_ms" >> ../results/results.csv
+                echo "matrix_multiplication,Boas,$size,$time_ms" >> benchmark/results/results.csv
                 echo "Matrix size $size completed in $time_ms ms"
                 ((count++))
             fi
@@ -105,9 +105,11 @@ else
     echo "Warning: boas_bench.bs not found"
 fi
 
+# 返回到scripts目录以继续执行其他测试
+cd benchmark/scripts
+
 # 生成图表
 echo "Generating plots..."
-cd ../scripts
 if [ -f "plot.py" ]; then
     python3 plot.py
     echo "Benchmark complete! Results are in ../results/comparison.png"
