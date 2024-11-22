@@ -96,6 +96,13 @@ if [ -f "benchmark/src/boas_bench.bs" ]; then
                 ((count++))
             fi
         done
+
+        # 清理临时文件
+        rm -f benchmark/src/temp.mlir
+        rm -f benchmark/src/temp.llvm.mlir
+        rm -f benchmark/src/temp.ll
+        rm -f benchmark/src/temp.s
+        rm -f benchmark/src/a.out
         
         echo "Benchmark completed successfully"
     else
