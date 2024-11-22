@@ -60,33 +60,27 @@ namespace {
     public:
         void handleValue(double value) {
             if (isBenchmarkMarker(value)) {
-                // This is a benchmark marker
                 int marker = static_cast<int>(value);
                 
                 if (marker % 2 == 1) {
-                    // Odd numbers are start markers
                     printf("%s=== Starting benchmark case %d ===\n", 
                            getCurrentTimestamp().c_str(), (marker + 1) / 2);
                 } else {
-                    // Even numbers are end markers
                     printf("%s=== Completed benchmark case %d ===\n", 
                            getCurrentTimestamp().c_str(), marker / 2);
                     
-                    // Print time taken if we have a start time
                     if (startTime > 0) {
-                        double duration = getCurrentTimeMs() - startTime;
-                        printf("%sTime taken: %.2f ms\n", 
+                        double duration = (getCurrentTimeUs() - startTime) / 1000.0;
+                        printf("%sTime taken: %.3f ms\n", 
                                getCurrentTimestamp().c_str(), duration);
-                        startTime = 0;  // Reset for next benchmark
+                        startTime = 0;
                     }
                 }
                 
                 if (marker % 2 == 1) {
-                    // Start timing for odd numbers (start markers)
-                    startTime = getCurrentTimeMs();
+                    startTime = getCurrentTimeUs();
                 }
             } else {
-                // Regular number, just print it
                 printNumber(value);
             }
             fflush(stdout);
@@ -95,10 +89,10 @@ namespace {
     private:
         double startTime = 0;
 
-        double getCurrentTimeMs() {
+        double getCurrentTimeUs() {
             auto now = std::chrono::system_clock::now();
             auto duration = now.time_since_epoch();
-            return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+            return std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
         }
     };
 
@@ -184,10 +178,10 @@ void printInt(int64_t value) {
     fflush(stdout);
 }
 
-double system_time_msec() {
+double system_time_usec() {
     auto now = std::chrono::system_clock::now();
     auto duration = now.time_since_epoch();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+    return std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
 }
 
 double generate_random() {

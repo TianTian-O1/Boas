@@ -45,8 +45,8 @@ void MLIRGen::declareRuntimeFunctions() {
     // printFloat function
     auto printFloatType = mlir::FunctionType::get(
         context.get(),
-        {builder->getF64Type()},  // 参数类型：double
-        {}                        // 返回类型：void
+        {builder->getF64Type()},
+        {}
     );
     
     auto printFloatFunc = mlir::func::FuncOp::create(
@@ -59,14 +59,14 @@ void MLIRGen::declareRuntimeFunctions() {
     
     // printMemrefF64 function
     auto memrefType = mlir::UnrankedMemRefType::get(
-        builder->getF64Type(),  // f64 类型
-        0                       // memory space
+        builder->getF64Type(),
+        0
     );
     
     auto printMemrefF64Type = mlir::FunctionType::get(
         context.get(),
-        {memrefType},  // 参数类型：memref<*xf64>
-        {}            // 返回类型：void
+        {memrefType},
+        {}
     );
     
     auto printMemrefF64Func = mlir::func::FuncOp::create(
@@ -77,26 +77,26 @@ void MLIRGen::declareRuntimeFunctions() {
     printMemrefF64Func.setPrivate();
     module.push_back(printMemrefF64Func);
     
-    // system_time_msec function
+    // system_time_usec function
     auto timeType = mlir::FunctionType::get(
         context.get(),
-        {},                      // 无参数
-        {builder->getF64Type()}  // 返回类型：double
+        {},
+        {builder->getF64Type()}
     );
     
     auto timeFunc = mlir::func::FuncOp::create(
         builder->getUnknownLoc(),
-        "system_time_msec",
+        "system_time_usec",
         timeType
     );
     timeFunc.setPrivate();
     module.push_back(timeFunc);
-
+    
     // generate_random function
     auto randomType = mlir::FunctionType::get(
         context.get(),
-        {},                        // 无参数
-        {builder->getF64Type()}    // 返回类型：double
+        {},
+        {builder->getF64Type()}
     );
     
     auto randomFunc = mlir::func::FuncOp::create(

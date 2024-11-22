@@ -85,6 +85,17 @@ private:
     static constexpr int64_t TILE_SIZE = 32;
     static constexpr int64_t VECTOR_SIZE = 8;
     static constexpr int64_t CACHE_LINE_SIZE = 64;
+
+    // 小矩阵优化相关函数
+    mlir::Value optimizeSmallMatrixMultiply(mlir::Value lhs, mlir::Value rhs, 
+                                           mlir::Value result, 
+                                           int64_t M, int64_t N, int64_t K);
+
+    // 添加新的私有方法
+    mlir::Value createFullyUnrolledMatmul(mlir::Value lhs, mlir::Value rhs, 
+                                         mlir::Value result,
+                                         int64_t M, int64_t N, int64_t K);
+    void addMemoryAccessAttributes(mlir::Operation* op);
 };
 
 } // namespace matrix

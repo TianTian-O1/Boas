@@ -77,15 +77,19 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
     // MLIR optimization pipeline
     std::string optCmd = "\"" + mlirOptPath + "\"" + 
         " " + mlirFilePath +
+        " -o " + llvmMlirFilePath +
         " --pass-pipeline=\"builtin.module("
-        "convert-linalg-to-loops,"        // linalg 到循环
-        "convert-scf-to-cf,"              // scf 到 cf
-        "convert-arith-to-llvm,"          // arith 到 llvm
-        "func.func(canonicalize),"         // 函数级优化
-        "convert-func-to-llvm,"           // func 到 llvm
-        "finalize-memref-to-llvm,"        // memref 最终转换
-        "reconcile-unrealized-casts)\"" +  // 处理未实现的转换
-        " -o " + llvmMlirFilePath;
+        "convert-linalg-to-loops,"
+        "loop-invariant-code-motion,"
+        "func.func(affine-loop-unroll{unroll-factor=4}),"
+        "affine-loop-fusion,"
+        "convert-scf-to-cf,"
+        "convert-vector-to-llvm,"
+        "convert-arith-to-llvm,"
+        "func.func(canonicalize),"
+        "convert-func-to-llvm,"
+        "finalize-memref-to-llvm,"
+        "reconcile-unrealized-casts)\"";
             
     std::cout << "\nExecuting MLIR optimization:\n" << optCmd << "\n";
     if (system(optCmd.c_str()) != 0) {
