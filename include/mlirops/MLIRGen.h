@@ -82,6 +82,7 @@ private:
     void addTilingAttributes(mlir::Operation* op, int64_t tileSize);
 
     void declareRuntimeFunctions();
+    void declareRandomFunction();
 };
 
 } // namespace matrix

@@ -90,6 +90,21 @@ void MLIRGen::declareRuntimeFunctions() {
     );
     timeFunc.setPrivate();
     module.push_back(timeFunc);
+
+    // Add declaration for generate_random function
+    auto randomType = mlir::FunctionType::get(
+        context.get(),
+        {},                         // no input parameters
+        {builder->getF64Type()}    // returns double
+    );
+    
+    auto randomFunc = mlir::func::FuncOp::create(
+        builder->getUnknownLoc(),
+        "generate_random",
+        randomType
+    );
+    randomFunc.setPrivate();
+    module.push_back(randomFunc);
 }
 
 mlir::Value MLIRGen::generateMLIRForMatmul(const MatmulExprAST* expr) {
@@ -717,206 +732,144 @@ bool validateMatrixDimensions(int64_t rows, int64_t cols, const char* matrixName
 }
 
 mlir::Value MLIRGen::generateMLIRForTensorRandom(const TensorRandomExprAST* expr) {
-    std::cerr << "[DEBUG] Generating highly optimized random tensor\n";
+    std::cerr << "[DEBUG] Generating random tensor\n";
+    
+    // Get dimensions from AST
     auto* rowsNum = static_cast<const NumberExprAST*>(expr->getRows());
     auto* colsNum = static_cast<const NumberExprAST*>(expr->getCols());
     
     int64_t rows = static_cast<int64_t>(rowsNum->getValue());
     int64_t cols = static_cast<int64_t>(colsNum->getValue());
     
-    if (rows <= 0 || cols <= 0 || rows > 2048 || cols > 2048) {
-        std::cerr << "Invalid matrix dimensions: " << rows << "x" << cols << "\n";
+    std::cerr << "[DEBUG] Creating tensor of size " << rows << "x" << cols << "\n";
+    
+    if (!validateMatrixDimensions(rows, cols, "random tensor")) {
         return nullptr;
     }
     
+    // Create tensor type and allocation
     auto resultType = mlir::MemRefType::get({rows, cols}, builder->getF64Type());
     auto alloc = builder->create<mlir::memref::AllocOp>(builder->getUnknownLoc(), resultType);
-
-    // 分块大小 - L1缓存优化
-    const int64_t TILE_SIZE = 32; 
-    const int64_t VECTOR_SIZE = 8;  // AVX-512 double向量大小
-
-    // 创建常量
-    auto lb = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), 0);
-    auto ub_rows = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), rows);
-    auto ub_cols = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), cols);
-    auto tile_step = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), TILE_SIZE);
-    auto vec_step = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), VECTOR_SIZE);
-    auto step = builder->create<mlir::arith::ConstantIndexOp>(builder->getUnknownLoc(), 1);
-
-    auto cols_val = builder->create<mlir::arith::ConstantFloatOp>(
-        builder->getUnknownLoc(),
-        llvm::APFloat(static_cast<double>(cols)),
-        builder->getF64Type()
-    );
     
-    auto total = builder->create<mlir::arith::ConstantFloatOp>(
-        builder->getUnknownLoc(),
-        llvm::APFloat(static_cast<double>(rows * cols)),
-        builder->getF64Type()
-    );
-
-    // 分块的外层循环
+    // Generate loop bounds
+    auto lb = createConstantIndex(0);
+    auto ub_rows = createConstantIndex(rows);
+    auto ub_cols = createConstantIndex(cols);
+    auto step = createConstantIndex(1);
+    
+    // Fill matrix with random values
+    std::cerr << "[DEBUG] Generating random values\n";
     builder->create<mlir::scf::ForOp>(
-        builder->getUnknownLoc(), lb, ub_rows, tile_step,
+        builder->getUnknownLoc(), lb, ub_rows, step,
         mlir::ValueRange{},
-        [&](mlir::OpBuilder& tile_i_builder, mlir::Location tile_i_loc, mlir::Value tile_i, mlir::ValueRange) {
-            tile_i_builder.create<mlir::scf::ForOp>(
-                tile_i_loc, lb, ub_cols, tile_step,
+        [&](mlir::OpBuilder& i_builder, mlir::Location i_loc, mlir::Value i, mlir::ValueRange) {
+            i_builder.create<mlir::scf::ForOp>(
+                i_loc, lb, ub_cols, step,
                 mlir::ValueRange{},
-                [&](mlir::OpBuilder& tile_j_builder, mlir::Location tile_j_loc, mlir::Value tile_j, mlir::ValueRange) {
-                    // 分块内部的细粒度循环
-                    tile_j_builder.create<mlir::scf::ForOp>(
-                        tile_j_loc, lb, tile_step, step,
-                        mlir::ValueRange{},
-                        [&](mlir::OpBuilder& i_builder, mlir::Location i_loc, mlir::Value i_offset, mlir::ValueRange) {
-                            // 向量化的内层循环
-                            i_builder.create<mlir::scf::ForOp>(
-                                i_loc, lb, tile_step, vec_step,
-                                mlir::ValueRange{},
-                                [&](mlir::OpBuilder& j_builder, mlir::Location j_loc, mlir::Value j_offset, mlir::ValueRange) {
-                                    // 计算实际索引
-                                    auto i_val = j_builder.create<mlir::arith::AddIOp>(
-                                        j_loc,
-                                        tile_i,
-                                        i_offset
-                                    );
-
-                                    // 转换为浮点数进行计算
-                                    auto i_i64 = j_builder.create<mlir::arith::IndexCastOp>(
-                                        j_loc,
-                                        j_builder.getI64Type(),
-                                        i_val
-                                    );
-                                    
-                                    auto i_f64 = j_builder.create<mlir::arith::SIToFPOp>(
-                                        j_loc,
-                                        j_builder.getF64Type(),
-                                        i_i64
-                                    );
-
-                                    // 对向量中的每个元素进行计算
-                                    for (int64_t v = 0; v < VECTOR_SIZE; ++v) {
-                                        auto j_val = j_builder.create<mlir::arith::AddIOp>(
-                                            j_loc,
-                                            tile_j,
-                                            j_builder.create<mlir::arith::AddIOp>(
-                                                j_loc,
-                                                j_offset,
-                                                j_builder.create<mlir::arith::ConstantIndexOp>(j_loc, v)
-                                            )
-                                        );
-                                        
-                                        auto j_i64 = j_builder.create<mlir::arith::IndexCastOp>(
-                                            j_loc,
-                                            j_builder.getI64Type(),
-                                            j_val
-                                        );
-                                        
-                                        auto j_f64 = j_builder.create<mlir::arith::SIToFPOp>(
-                                            j_loc,
-                                            j_builder.getF64Type(),
-                                            j_i64
-                                        );
-                                        
-                                        // 计算随机值: (i * cols + j) / total
-                                        auto row_term = j_builder.create<mlir::arith::MulFOp>(
-                                            j_loc,
-                                            i_f64,
-                                            cols_val
-                                        );
-                                        
-                                        auto sum = j_builder.create<mlir::arith::AddFOp>(
-                                            j_loc,
-                                            row_term,
-                                            j_f64
-                                        );
-                                        
-                                        auto val = j_builder.create<mlir::arith::DivFOp>(
-                                            j_loc,
-                                            sum,
-                                            total
-                                        );
-
-                                        // 存储计算结果
-                                        j_builder.create<mlir::memref::StoreOp>(
-                                            j_loc,
-                                            val,
-                                            alloc,
-                                            mlir::ValueRange{i_val, j_val}
-                                        );
-                                    }
-
-                                    j_builder.create<mlir::scf::YieldOp>(j_loc);
-                                }
-                            );
-                            i_builder.create<mlir::scf::YieldOp>(i_loc);
-                        }
+                [&](mlir::OpBuilder& j_builder, mlir::Location j_loc, mlir::Value j, mlir::ValueRange) {
+                    auto random_val = j_builder.create<mlir::func::CallOp>(
+                        j_loc,
+                        "generate_random",
+                        mlir::TypeRange{j_builder.getF64Type()},
+                        mlir::ValueRange{}
                     );
-                    tile_j_builder.create<mlir::scf::YieldOp>(tile_j_loc);
+                    
+                    j_builder.create<mlir::memref::StoreOp>(
+                        j_loc,
+                        random_val.getResult(0),
+                        alloc,
+                        mlir::ValueRange{i, j}
+                    );
+                    
+                    j_builder.create<mlir::scf::YieldOp>(j_loc);
                 }
             );
-            tile_i_builder.create<mlir::scf::YieldOp>(tile_i_loc);
+            i_builder.create<mlir::scf::YieldOp>(i_loc);
         }
     );
 
+    std::cerr << "[DEBUG] Tensor generation complete\n";
     return alloc;
 }
-
 mlir::Value MLIRGen::generateMLIRForPrint(const PrintExprAST* expr) {
     if (!expr) {
         std::cerr << "Null print expression\n";
         return nullptr;
     }
     
-    // 获取当前时间戳
-    auto timestamp = generateTimeNowMLIR(nullptr);
-    if (!timestamp) {
-        std::cerr << "Failed to generate timestamp\n";
-        return nullptr;
-    }
-    
-    // 打印时间戳
-    builder->create<mlir::func::CallOp>(
-        builder->getUnknownLoc(),
-        "printFloat",
-        mlir::TypeRange{},
-        mlir::ValueRange{timestamp}
-    );
-    
-    // 打印空格分隔符
-    if (!module.lookupSymbol("printString")) {
-        auto funcType = mlir::FunctionType::get(
-            context.get(),
-            {mlir::MemRefType::get({-1}, builder->getIntegerType(8))},
-            {}
-        );
-        auto printFunc = mlir::func::FuncOp::create(
-            builder->getUnknownLoc(),
-            "printString",
-            funcType
-        );
-        printFunc.setPrivate();
-        module.push_back(printFunc);
-    }
-    
-    // 打印实际值
+    // Get the value to print
     auto value = generateMLIRForNode(expr->getValue());
     if (!value) {
         std::cerr << "Failed to generate value for print\n";
         return nullptr;
     }
     
-    // 据值类型调用相应的打函数
-    if (auto numberType = mlir::dyn_cast<mlir::FloatType>(value.getType())) {
+    // Print value based on its type
+    if (auto floatTy = mlir::dyn_cast<mlir::FloatType>(value.getType())) {
+        // For scalar floating point values
         builder->create<mlir::func::CallOp>(
             builder->getUnknownLoc(),
             "printFloat",
             mlir::TypeRange{},
             mlir::ValueRange{value}
         );
-    } 
-    // ... 其他类型的处理保持不变 ...
+    } else if (auto memrefTy = mlir::dyn_cast<mlir::MemRefType>(value.getType())) {
+        // For matrices/tensors
+        
+        // Get dimensions
+        auto shape = memrefTy.getShape();
+        int64_t rows = shape[0];
+        int64_t cols = shape.size() > 1 ? shape[1] : 1;
+        
+        // Create loop bounds
+        auto zero = createConstantIndex(0);
+        auto rowsVal = createConstantIndex(rows);
+        auto colsVal = createConstantIndex(cols);
+        auto step = createConstantIndex(1);
+        
+        // Print dimensions as header
+        auto dimsHeader = createConstantF64(rows * cols);
+        builder->create<mlir::func::CallOp>(
+            builder->getUnknownLoc(),
+            "printFloat",
+            mlir::TypeRange{},
+            mlir::ValueRange{dimsHeader}
+        );
+        
+        // Create nested loops to print matrix elements
+        builder->create<mlir::scf::ForOp>(
+            builder->getUnknownLoc(), zero, rowsVal, step,
+            mlir::ValueRange{},
+            [&](mlir::OpBuilder& nested, mlir::Location loc, mlir::Value i, mlir::ValueRange args) {
+                nested.create<mlir::scf::ForOp>(
+                    loc, zero, colsVal, step,
+                    mlir::ValueRange{},
+                    [&](mlir::OpBuilder& inner, mlir::Location inner_loc, mlir::Value j, mlir::ValueRange inner_args) {
+                        // Load matrix element
+                        auto element = inner.create<mlir::memref::LoadOp>(
+                            inner_loc,
+                            value,
+                            mlir::ValueRange{i, j}
+                        );
+                        
+                        // Print element
+                        inner.create<mlir::func::CallOp>(
+                            inner_loc,
+                            "printFloat",
+                            mlir::TypeRange{},
+                            mlir::ValueRange{element}
+                        );
+                        
+                        inner.create<mlir::scf::YieldOp>(inner_loc);
+                    }
+                );
+                nested.create<mlir::scf::YieldOp>(loc);
+            }
+        );
+    } else {
+        std::cerr << "Unsupported type for print\n";
+        return nullptr;
+    }
     
     return value;
 }
