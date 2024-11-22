@@ -791,6 +791,7 @@ mlir::Value MLIRGen::generateMLIRForTensorRandom(const TensorRandomExprAST* expr
     std::cerr << "[DEBUG] Tensor generation complete\n";
     return alloc;
 }
+
 mlir::Value MLIRGen::generateMLIRForPrint(const PrintExprAST* expr) {
     if (!expr) {
         std::cerr << "Null print expression\n";

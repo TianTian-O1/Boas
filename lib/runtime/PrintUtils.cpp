@@ -3,121 +3,108 @@
 #include <chrono>
 #include <random>
 #include <thread>
+#include <string>
+#include <iomanip>
+#include <sstream>
+#include <cmath>
 
 namespace {
-    struct PrintState {
-        int currentRow = 0;
-        int currentCol = 0;
-        int totalRows = 0;
-        int totalCols = 0;
-        bool waitingForDimensions = true;
-        bool gotRows = false;
+    // 获取当前时间戳的格式化字符串
+    std::string getCurrentTimestamp() {
+        auto now = std::chrono::system_clock::now();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch()
+        ).count() % 1000;
         
-        void reset() {
-            currentRow = 0;
-            currentCol = 0;
-            totalRows = 0;
-            totalCols = 0;
-            waitingForDimensions = true;
-            gotRows = false;
-        }
+        auto time = std::chrono::system_clock::to_time_t(now);
+        auto tm = *std::localtime(&time);
+        
+        std::ostringstream oss;
+        oss << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") 
+            << "." << std::setfill('0') << std::setw(3) << ms << "] ";
+            
+        return oss.str();
+    }
+
+    // 打印矩阵相关的全局状态
+    struct PrintState {
+        int count = 0;          // 当前打印的元素计数
+        int totalElements = 0;  // 矩阵总元素数
+        int matrixSize = 0;     // 矩阵维度（假设是方阵）
+        bool headerPrinted = false; // 是否已打印矩阵头部
     };
-    
-    PrintState state;
+
+    static PrintState printState;
+
+    void resetPrintState() {
+        printState = PrintState();
+    }
 }
 
 extern "C" {
 
-// Helper function to write a formatted double
-void writeDouble(double value) {
-    printf("%.4f", value);
-    fflush(stdout);
-}
-
-void writeString(const char* str) {
-    printf("%s", str);
-    fflush(stdout);
-}
-
-void writeNewline() {
-    printf("\n");
-    fflush(stdout);
-}
-
 void printFloat(double value) {
-    // Handle timestamp
-    if (value > 1e6) {
-        auto milliseconds = static_cast<int64_t>(value);
-        auto timePoint = std::chrono::system_clock::time_point(
-            std::chrono::milliseconds(milliseconds)
-        );
-        auto time = std::chrono::system_clock::to_time_t(timePoint);
-        auto localTime = *std::localtime(&time);
-        auto ms = milliseconds % 1000;
-        char buffer[32];
-        std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &localTime);
-        printf("%s.%03ld\n", buffer, ms);
-        fflush(stdout);
-        return;
-    }
-
-    // Handle matrix printing
-    if (state.waitingForDimensions) {
-        if (!state.gotRows) {
-            // First number is rows
-            state.totalRows = static_cast<int>(value);
-            state.gotRows = true;
-            return;
-        } else {
-            // Second number is cols
-            state.totalCols = static_cast<int>(value);
-            writeString("Matrix [");
-            printf("%d x %d", state.totalRows, state.totalCols);
-            writeString("]:\n[");
-            writeNewline();
-            state.waitingForDimensions = false;
-            return;
-        }
-    }
-
-    // Print matrix elements
-    if (state.currentCol == 0) {
-        writeString("  [");  // Start new row
-        writeDouble(value);
+    // 第一个数字表示总元素个数
+    if (printState.count == 0) {
+        printState.totalElements = static_cast<int>(value);
+        printState.matrixSize = static_cast<int>(sqrt(printState.totalElements));
+        printf("%sMatrix %dx%d:\n", getCurrentTimestamp().c_str(), 
+               printState.matrixSize, printState.matrixSize);
+        printf("[\n");
+        printState.headerPrinted = true;
     } else {
-        writeString(", ");
-        writeDouble(value);
+        // 打印矩阵元素
+        if ((printState.count - 1) % printState.matrixSize == 0) {
+            printf("  "); // 每行开始的缩进
+        }
+        
+        // 打印数字，使用固定宽度格式
+        printf("%8.4f", value);
+        
+        // 添加分隔符
+        if ((printState.count - 1) % printState.matrixSize == printState.matrixSize - 1) {
+            if (printState.count < printState.totalElements) {
+                printf(",\n"); // 行末，但不是最后一行
+            } else {
+                printf("\n"); // 最后一行
+            }
+        } else if (printState.count < printState.totalElements) {
+            printf(", "); // 同一行的元素之间
+        }
+        
+        // 检查是否是矩阵的最后一个元素
+        if (printState.count == printState.totalElements) {
+            printf("]\n"); // 关闭矩阵的方括号
+            resetPrintState(); // 重置状态，为下一个矩阵做准备
+        }
     }
-
-    state.currentCol++;
     
-    // Handle end of row
-    if (state.currentCol >= state.totalCols) {
-        writeString("]");  // Close row brackets
-        if (state.currentRow < state.totalRows - 1) {
-            writeString(",");  // Add comma if not last row
-        }
-        writeNewline();
-        
-        state.currentCol = 0;
-        state.currentRow++;
-        
-        // Check if matrix is complete
-        if (state.currentRow >= state.totalRows) {
-            writeString("]");
-            writeNewline();
-            state.reset();  // Reset state for next matrix
-        }
-    }
+    printState.count++;
+    fflush(stdout);
 }
 
 void printString(const char* str) {
-    printf("%s\n", str);
+    printf("%s%s\n", getCurrentTimestamp().c_str(), str);
     fflush(stdout);
 }
 
 void printInt(int64_t value) {
-    printf("%ld\n", value);
+    printf("%s%lld\n", getCurrentTimestamp().c_str(), value);
+    fflush(stdout);
+}
+
+void printError(const char* message) {
+    printf("%sError: %s\n", getCurrentTimestamp().c_str(), message);
+    fflush(stdout);
+}
+
+void printDebug(const char* message) {
+    printf("%sDebug: %s\n", getCurrentTimestamp().c_str(), message);
+    fflush(stdout);
+}
+
+void printSeparator() {
+    printf("\n%s----------------------------------------\n", getCurrentTimestamp().c_str());
     fflush(stdout);
 }
 
@@ -134,4 +121,4 @@ double generate_random() {
     return dist(gen);
 }
 
-}
+} // extern "C"
