@@ -87,8 +87,8 @@ if [ $? -eq 0 ] && [ ! -z "$TEST_FILE" ]; then
     echo -e "${YELLOW}Running parser test...${NC}"
     ./test-parser "$TEST_FILE_PATH"
     
-    echo -e "${YELLOW}Running LLVM test...${NC}"
-    ./test-llvm "$TEST_FILE_PATH"
+    echo -e "${YELLOW}Running MLIR/LLVM compilation...${NC}"
+    ./matrix-compiler "$TEST_FILE_PATH" --run
 else
     echo -e "${RED}Build failed or no test file specified${NC}"
 fi

@@ -63,6 +63,12 @@ add_library(matrix-lib
     lib/frontend/Lexer.cpp
     lib/frontend/Parser.cpp
     lib/mlirops/MLIRGen.cpp
+    lib/mlirops/MLIRGenMatrix.cpp
+    lib/mlirops/MLIRGenNodes.cpp
+    lib/mlirops/MLIRGenTensor.cpp
+    lib/mlirops/MLIRGenTiming.cpp
+    lib/mlirops/MLIRGenUtils.cpp
+    lib/mlirops/MLIRGenOptimization.cpp
     lib/Debug.cpp
 )
 

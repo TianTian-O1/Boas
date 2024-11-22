@@ -1,3 +1,4 @@
+// MLIRGen.h - 主头文件
 #ifndef MATRIX_MLIR_GEN_H
 #define MATRIX_MLIR_GEN_H
 
@@ -11,8 +12,8 @@
 #include "mlir/IR/SymbolTable.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"        // SCF dialect
-#include "mlir/Dialect/Vector/IR/VectorOps.h" // Vector dialect
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -32,57 +33,58 @@ private:
     mlir::ModuleOp module;
     std::map<std::string, mlir::Value> symbolTable;
 
-    // 优化相关的常量
-    static constexpr int64_t TILE_SIZE = 32;
-    static constexpr int64_t VECTOR_SIZE = 8;
-    static constexpr int64_t CACHE_LINE_SIZE = 64;
-
-    // Debugging helper
-    void dumpState(const std::string& message);
-
-    // Time related methods
-    mlir::Value generateTimeNowMLIR(const TimeCallExprAST* expr);
-    mlir::Value generateTimeDiffMLIR(mlir::Value lhs, mlir::Value rhs);
-    mlir::Value convertToMilliseconds(mlir::Value seconds);
-
-    // AST node handlers
+    // Core methods
+    void initializeContext();
+    void declareRuntimeFunctions();
     mlir::Value generateMLIRForNode(const ExprAST* node);
+    void processASTNode(mlir::Block* block, const std::vector<std::unique_ptr<ExprAST>>& ast);
+
+    // AST node handlers - defined in MLIRGenNodes.cpp
     mlir::Value generateMLIRForFunction(const FunctionAST* func);
     mlir::Value generateMLIRForImport(const ImportAST* import);
-    mlir::Value generateMLIRForVariable(const VariableExprAST* expr);
+    mlir::Value generateMLIRForVariable(const VariableExprAST* expr); 
     mlir::Value generateMLIRForAssignment(const AssignmentExprAST* expr);
     mlir::Value generateNumberMLIR(const NumberExprAST* number);
     mlir::Value generateMLIRForBinary(const BinaryExprAST* expr);
     mlir::Value generateMLIRForCall(const CallExprAST* expr);
     mlir::Value generateMLIRForArray(const ArrayExprAST* expr);
-    mlir::Value generateMLIRForTensor(const TensorExprAST* expr);
-    mlir::Value generateMLIRForTensorCreate(const TensorCreateExprAST* expr);
-    mlir::Value generateMLIRForMatmul(const MatmulExprAST* expr);
-    mlir::Value generateMLIRForTensorRandom(const TensorRandomExprAST* expr);
     mlir::Value generateMLIRForPrint(const PrintExprAST* print);
 
-    // Helper methods
-    mlir::FloatType getF64Type();
-    mlir::Value createConstantF64(double value);
-    mlir::Value createConstantIndex(int64_t value);
-    mlir::MemRefType getMemRefType(int64_t rows, int64_t cols);
-    void processASTNode(mlir::Block* block, const std::vector<std::unique_ptr<ExprAST>>& ast);
-    bool isStoredInSymbolTable(mlir::Value value);
-    
-    // Optimization helpers
+    // Tensor operations - defined in MLIRGenTensor.cpp
+    mlir::Value generateMLIRForTensor(const TensorExprAST* expr);
+    mlir::Value generateMLIRForTensorCreate(const TensorCreateExprAST* expr);
+    mlir::Value generateMLIRForTensorRandom(const TensorRandomExprAST* expr);
+
+    // Matrix operations - defined in MLIRGenMatrix.cpp 
+    mlir::Value generateMLIRForMatmul(const MatmulExprAST* expr);
     mlir::Value createOptimizedMatmul(mlir::Value lhs, mlir::Value rhs, mlir::Value result,
                                      int64_t M, int64_t N, int64_t K);
-    void addVectorizationAttributes(mlir::Operation* op);
-    void addParallelizationAttributes(mlir::Operation* op);
-    
-    // Matrix operation optimization helpers
     mlir::Value createBlockedMatmul(mlir::Value lhs, mlir::Value rhs, const MatmulExprAST* expr);
     mlir::Value createVectorizedMatmul(mlir::Value lhs, mlir::Value rhs, const MatmulExprAST* expr);
+
+    // Timing operations - defined in MLIRGenTiming.cpp
+    mlir::Value generateTimeNowMLIR(const TimeCallExprAST* expr);
+    mlir::Value generateTimeDiffMLIR(mlir::Value lhs, mlir::Value rhs);
+    mlir::Value convertToMilliseconds(mlir::Value seconds);
+
+    // Helper methods - defined in MLIRGenUtils.cpp
+    mlir::FloatType getF64Type();
+    mlir::Value createConstantF64(double value);
+    mlir::Value createConstantIndex(int64_t value); 
+    mlir::MemRefType getMemRefType(int64_t rows, int64_t cols);
+    bool isStoredInSymbolTable(mlir::Value value);
+    void dumpState(const std::string& message);
+    
+    // Optimization helpers - defined in MLIRGenOptimizations.cpp
+    void addVectorizationAttributes(mlir::Operation* op);
+    void addParallelizationAttributes(mlir::Operation* op);
     void optimizeMemoryAccess(mlir::Operation* op);
     void addTilingAttributes(mlir::Operation* op, int64_t tileSize);
 
-    void declareRuntimeFunctions();
-    void declareRandomFunction();
+    // Constants
+    static constexpr int64_t TILE_SIZE = 32;
+    static constexpr int64_t VECTOR_SIZE = 8;
+    static constexpr int64_t CACHE_LINE_SIZE = 64;
 };
 
 } // namespace matrix
