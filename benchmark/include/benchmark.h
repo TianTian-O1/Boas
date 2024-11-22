@@ -20,7 +20,6 @@ public:
         std::string language;
         size_t size;
         double time_ms;
-        double memory_kb;
     };
 
     static void run(const std::string& name, 
@@ -51,7 +50,7 @@ public:
                   << "Memory=" << memory_kb << "KB" << std::endl;
         
         // 保存结果
-        Result result{name, language, size, time_ms, memory_kb};
+        Result result{name, language, size, time_ms};
         saveResult(result);
     }
 
@@ -77,8 +76,7 @@ private:
             file << result.name << ","
                  << result.language << ","
                  << result.size << ","
-                 << std::fixed << std::setprecision(2) << result.time_ms << ","
-                 << std::fixed << std::setprecision(2) << result.memory_kb << "\n";
+                 << result.time_ms << "\n";
         }
     }
 };

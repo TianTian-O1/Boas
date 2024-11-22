@@ -86,8 +86,7 @@ def benchmark_pure_python(size):
             'name': ['matrix_multiplication'],
             'language': ['Pure Python (Opt)'],
             'size': [size],
-            'time_ms': [time_ms],
-            'memory_kb': [memory_kb]
+            'time_ms': [time_ms]
         })
         
         results_path = '../results/results.csv'
@@ -144,8 +143,7 @@ def benchmark_numpy(size):
             'name': ['matrix_multiplication'],
             'language': ['NumPy'],
             'size': [size],
-            'time_ms': [time_ms],
-            'memory_kb': [memory_kb]
+            'time_ms': [time_ms]
         })
         
         results_path = '../results/results.csv'

@@ -1,20 +1,30 @@
-name,language,size,time_ms,memory_kb
-matrix_multiplication,C++,64,0.18,112.00
-matrix_multiplication,C++,128,0.64,516.00
-matrix_multiplication,C++,256,2.07,1620.00
-matrix_multiplication,C++,512,9.19,3236.00
-matrix_multiplication,C++,1024,42.25,12580.00
-matrix_multiplication,Pure Python (Opt),64,35.83574295043945,116.0
-matrix_multiplication,Pure Python (Opt),128,331.8331241607666,272.0
-matrix_multiplication,Pure Python (Opt),256,2649.7249603271484,1408.0
-matrix_multiplication,Pure Python (Opt),512,20641.307830810547,3648.0
-matrix_multiplication,NumPy,64,1.3027191162109375,76.0
-matrix_multiplication,NumPy,128,2.4051666259765625,132.0
-matrix_multiplication,NumPy,256,0.5838871002197266,880.0
-matrix_multiplication,NumPy,512,3.551006317138672,5664.0
-matrix_multiplication,NumPy,1024,12.969970703125,21520.0
-matrix_multiplication,Boas,64,2.000093460083008,5380.0
-matrix_multiplication,Boas,128,6.999969482421875,5380.0
-matrix_multiplication,Boas,256,59.999942779541016,5380.0
-matrix_multiplication,Boas,512,519.9999809265137,5380.0
-matrix_multiplication,Boas,1024,5807.000160217285,5380.0
+name,language,size,time_ms
+matrix_multiplication,C++,64,0.237
+matrix_multiplication,C++,128,0.808
+matrix_multiplication,C++,256,3.101
+matrix_multiplication,C++,512,11.243
+matrix_multiplication,C++,1024,79.322
+matrix_multiplication,Pure Python (Opt),64,42.78969764709473
+matrix_multiplication,Pure Python (Opt),128,330.88207244873047
+matrix_multiplication,Pure Python (Opt),256,2633.1450939178467
+matrix_multiplication,Pure Python (Opt),512,20803.425788879395
+matrix_multiplication,NumPy,64,0.1800060272216797
+matrix_multiplication,NumPy,128,0.25391578674316406
+matrix_multiplication,NumPy,256,0.43392181396484375
+matrix_multiplication,NumPy,512,2.6171207427978516
+matrix_multiplication,NumPy,1024,14.111042022705078
+matrix_multiplication,Go,64,0.23
+matrix_multiplication,Go,128,1.11
+matrix_multiplication,Go,256,8.09
+matrix_multiplication,Go,512,59.71
+matrix_multiplication,Go,1024,761.14
+matrix_multiplication,Java,64,11.03
+matrix_multiplication,Java,128,1.53
+matrix_multiplication,Java,256,4.15
+matrix_multiplication,Java,512,23.92
+matrix_multiplication,Java,1024,133.32
+matrix_multiplication,Boas,64,2.00
+matrix_multiplication,Boas,128,13.00
+matrix_multiplication,Boas,256,85.00
+matrix_multiplication,Boas,512,565.00
+matrix_multiplication,Boas,1024,5488.00

@@ -1,93 +1,82 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
 
 def plot_results():
-    # 读取结果
+    # 读取结果数据
     df = pd.read_csv('../results/results.csv')
     
-    # 设置风格和颜色
-    plt.style.use('seaborn-v0_8-darkgrid')
-    colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']  # 红色、青色、蓝色和 Boas
-    sns.set_palette(colors)
+    # 设置图表风格
+    plt.style.use('default')
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
     
-    # 确保语言顺序一致
-    language_order = ['C++', 'NumPy', 'Pure Python (Opt)', 'Boas']
-    df['language'] = pd.Categorical(df['language'], categories=language_order, ordered=True)
+    # 创建图表
+    plt.figure(figsize=(12, 7))
     
-    # 设置字体
-    plt.rcParams['font.family'] = 'Arial'
-    plt.rcParams['font.size'] = 12
+    # 为每个实现创建线图
+    for i, implementation in enumerate(df['language'].unique()):
+        data = df[df['language'] == implementation]
+        if implementation == 'Boas':
+            # Boas 使用实线，加粗显示
+            plt.plot(data['size'], data['time_ms'], 
+                    marker='o', 
+                    markersize=8, 
+                    label=implementation,
+                    color='#ff7f0e',  # 使用醒目的橙色
+                    linewidth=3)
+        else:
+            # 其他实现使用虚线
+            plt.plot(data['size'], data['time_ms'], 
+                    marker='o', 
+                    markersize=6, 
+                    label=implementation,
+                    color=colors[i % len(colors)],
+                    linewidth=2,
+                    linestyle='--',
+                    alpha=0.7)
     
-    # 创建性能对比图
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+    # 设置标题和标签
+    plt.title('Matrix Multiplication Performance Comparison\n(Lower is Better)', 
+             fontsize=14, pad=20)
+    plt.xlabel('Matrix Size (N×N)', fontsize=12)
+    plt.ylabel('Execution Time (ms)', fontsize=12)
+    plt.yscale('log')
     
-    # 时间对比
-    sns.lineplot(data=df, x='size', y='time_ms', hue='language', 
-                marker='o', ax=ax1, linewidth=3, markersize=10)
-    ax1.set_title('Execution Time Comparison', fontsize=16, pad=20, fontweight='bold')
-    ax1.set_xlabel('Matrix Size', fontsize=14)
-    ax1.set_ylabel('Time (ms)', fontsize=14)
-    ax1.set_yscale('log')
-    ax1.grid(True, which="both", ls="-", alpha=0.2)
-    ax1.legend(title='Language', title_fontsize=14, fontsize=12, 
-              bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=2)
+    # 自定义图例
+    plt.legend(title='Implementation', 
+              title_fontsize=12, 
+              fontsize=10, 
+              loc='upper left')
     
-    # 内存对比
-    sns.lineplot(data=df, x='size', y='memory_kb', hue='language', 
-                marker='o', ax=ax2, linewidth=3, markersize=10)
-    ax2.set_title('Memory Usage Comparison', fontsize=16, pad=20, fontweight='bold')
-    ax2.set_xlabel('Matrix Size', fontsize=14)
-    ax2.set_ylabel('Memory (KB)', fontsize=14)
-    ax2.set_yscale('log')
-    ax2.grid(True, which="both", ls="-", alpha=0.2)
-    ax2.legend(title='Language', title_fontsize=14, fontsize=12,
-              bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=2)
-    
-    # 添加数据标签，使用科学计数法
-    for ax in [ax1, ax2]:
-        for line in ax.lines:
-            if line.get_label() in df['language'].unique():
-                y_data = line.get_ydata()
-                x_data = line.get_xdata()
-                for x, y in zip(x_data, y_data):
-                    if not np.isnan(y):
-                        if y >= 1000:
-                            label = f'{y:.1e}'
-                        else:
-                            label = f'{y:.1f}'
-                        ax.annotate(label, 
-                                  (x, y), 
-                                  textcoords="offset points",
-                                  xytext=(0,10), 
-                                  ha='center',
-                                  fontsize=10,
-                                  bbox=dict(facecolor='white', 
-                                          edgecolor='none',
-                                          alpha=0.7,
-                                          pad=1))
-    
-    # 设置背景色和边框
-    for ax in [ax1, ax2]:
-        ax.set_facecolor('#f8f9fa')
-        for spine in ax.spines.values():
-            spine.set_edgecolor('#cccccc')
+    # 添加网格
+    plt.grid(True, which="both", ls="-", alpha=0.2)
     
     # 调整布局
-    plt.tight_layout(rect=[0, 0.1, 1, 1])  # 为底部的图例留出空间
+    plt.tight_layout()
     
     # 保存图表
-    plt.savefig('../results/comparison.png', 
-                dpi=300, 
-                bbox_inches='tight',
-                facecolor='white')
+    plt.savefig('../results/comparison.png', dpi=300, bbox_inches='tight')
     plt.close()
 
-    # 打印详细结果表格
-    print("\nDetailed Results:")
-    pd.set_option('display.float_format', lambda x: '%.2f' if x < 1000 else '%.2e' % x)
-    print(df.to_string(index=False))
+    # 打印性能统计数据
+    print("\nPerformance Statistics:")
+    print("\nExecution Time (ms) by Matrix Size:")
+    
+    # 创建性能统计表格
+    stats = df.pivot_table(
+        values='time_ms',
+        index='language',
+        columns='size',
+        aggfunc='mean'
+    ).round(2)
+    
+    print(stats)
+    
+    # 计算相对性能（以 NumPy 为基准）
+    if 'NumPy' in stats.index:
+        print("\nRelative Performance (compared to NumPy):")
+        numpy_times = stats.loc['NumPy']
+        relative_perf = stats.div(numpy_times)
+        print(relative_perf.round(2))
 
 if __name__ == '__main__':
     plot_results()
