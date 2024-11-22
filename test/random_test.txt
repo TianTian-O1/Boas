@@ -4,7 +4,7 @@ def main():
     
 
     # 4 x 4
-    A4 = tensor.random(2, 2)
-    B4 = tensor.random(2, 2)
+    A4 = tensor.random(3, 3)
+    B4 = tensor.random(3, 3)
     C4 = tensor.matmul(A4, B4)
     print(C4)

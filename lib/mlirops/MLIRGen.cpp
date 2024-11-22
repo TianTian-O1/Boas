@@ -105,6 +105,26 @@ void MLIRGen::declareRuntimeFunctions() {
     );
     randomFunc.setPrivate();
     module.push_back(randomFunc);
+
+    // 声明 printMemrefF64 函数
+    auto printMemrefType = mlir::UnrankedMemRefType::get(
+        builder->getF64Type(),  // f64 类型
+        0                       // memory space
+    );
+    
+    auto printMemrefF64Type = mlir::FunctionType::get(
+        context.get(),
+        {printMemrefType},  // 参数类型：memref<*xf64>
+        {}                  // 返回类型：void
+    );
+    
+    auto printMemrefF64Func = mlir::func::FuncOp::create(
+        builder->getUnknownLoc(),
+        "printMemrefF64",
+        printMemrefF64Type
+    );
+    printMemrefF64Func.setPrivate();
+    module.push_back(printMemrefF64Func);
 }
 
 
@@ -829,49 +849,23 @@ mlir::Value MLIRGen::generateMLIRForPrint(const PrintExprAST* expr) {
             mlir::ValueRange{floatValue}
         );
     } else if (auto memrefTy = mlir::dyn_cast<mlir::MemRefType>(value.getType())) {
-        // For matrices/tensors, print all values
-        auto shape = memrefTy.getShape();
-        int64_t rows = shape[0];
-        int64_t cols = shape.size() > 1 ? shape[1] : 1;
-        
-        // Create nested loops to iterate through the matrix
-        auto lb = builder->create<mlir::arith::ConstantIndexOp>(loc, 0);
-        auto ub_rows = builder->create<mlir::arith::ConstantIndexOp>(loc, rows);
-        auto ub_cols = builder->create<mlir::arith::ConstantIndexOp>(loc, cols);
-        auto step = builder->create<mlir::arith::ConstantIndexOp>(loc, 1);
-        
-        // Outer loop for rows
-        builder->create<mlir::scf::ForOp>(
-            loc, lb, ub_rows, step,
-            mlir::ValueRange{},
-            [&](mlir::OpBuilder& nested, mlir::Location loc, mlir::Value i, mlir::ValueRange args) {
-                // Inner loop for columns
-                nested.create<mlir::scf::ForOp>(
-                    loc, lb, ub_cols, step,
-                    mlir::ValueRange{},
-                    [&](mlir::OpBuilder& inner, mlir::Location loc, mlir::Value j, mlir::ValueRange inner_args) {
-                        // Load value at current position
-                        auto element = inner.create<mlir::memref::LoadOp>(
-                            loc,
-                            value,
-                            mlir::ValueRange{i, j}
-                        );
-                        
-                        // Print the element
-                        inner.create<mlir::func::CallOp>(
-                            loc,
-                            "printFloat",
-                            mlir::TypeRange{},
-                            mlir::ValueRange{element}
-                        );
-                        
-                        inner.create<mlir::scf::YieldOp>(loc);
-                    }
-                );
-                nested.create<mlir::scf::YieldOp>(loc);
-            }
+        // 将结果矩阵转换为 unranked memref 并打印
+        auto resultType = mlir::UnrankedMemRefType::get(
+            builder->getF64Type(),
+            0
+        );
+        auto cast = builder->create<mlir::memref::CastOp>(
+            loc,
+            resultType,
+            value
         );
         
+        builder->create<mlir::func::CallOp>(
+            loc,
+            "printMemrefF64",
+            mlir::TypeRange{},
+            mlir::ValueRange{cast}
+        );
     } else if (auto floatTy = mlir::dyn_cast<mlir::FloatType>(value.getType())) {
         // For other float values
         builder->create<mlir::func::CallOp>(

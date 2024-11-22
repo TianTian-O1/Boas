@@ -34,8 +34,20 @@ namespace {
 
     // Helper function to check if a value is a benchmark marker
     bool isBenchmarkMarker(double value) {
-        return isExactInteger(value) && value >= 1.0 && value <= 10.0 && 
-               value == std::floor(value);  // Must be whole number
+        // 只有在基准测试上下文中的数字才被视为标记
+        // 这里我们可以通过一个静态标志来追踪上下文
+        static bool inBenchmarkContext = false;
+        
+        if (isExactInteger(value)) {
+            if (value >= 1.0 && value <= 10.0 && value == std::floor(value)) {
+                inBenchmarkContext = true;
+                return true;
+            } else if (inBenchmarkContext) {
+                // 如果已经在基准测试上下文中，重置标志
+                inBenchmarkContext = false;
+            }
+        }
+        return false;
     }
 
     // Simple printer for regular numbers
@@ -91,12 +103,75 @@ namespace {
     };
 
     static BenchmarkTracker benchmarkTracker;
+
+    // 新增：矩阵打印状态追踪
+    class MatrixPrintState {
+    private:
+        int currentRow = 0;
+        int currentCol = 0;
+        int matrixSize = 0;
+        bool isFirstElement = true;
+        
+    public:
+        void reset(int size = 0) {
+            currentRow = 0;
+            currentCol = 0;
+            matrixSize = size;
+            isFirstElement = true;
+        }
+        
+        void printElement(double value) {
+            if (isFirstElement) {
+                printf("%s[Matrix Result]\n", getCurrentTimestamp().c_str());
+                isFirstElement = false;
+            }
+            
+            if (currentCol == 0) {
+                printf("%s| ", getCurrentTimestamp().c_str());
+            }
+            
+            printf("%8.4f ", value);
+            currentCol++;
+            
+            if (currentCol >= matrixSize) {
+                printf("|\n");
+                currentCol = 0;
+                currentRow++;
+                
+                if (currentRow >= matrixSize) {
+                    printf("%s[End Matrix]\n", getCurrentTimestamp().c_str());
+                    reset();
+                }
+            }
+        }
+        
+        bool isActive() const {
+            return matrixSize > 0;
+        }
+    };
+    
+    static MatrixPrintState matrixState;
 }
 
 extern "C" {
 
 void printFloat(double value) {
-    benchmarkTracker.handleValue(value);
+    if (isBenchmarkMarker(value)) {
+        // 如果是基准测试标记，重置矩阵状态并处理标记
+        matrixState.reset();
+        benchmarkTracker.handleValue(value);
+    } else if (isExactInteger(value) && value >= 0 && value <= 100 && matrixState.isActive()) {
+        // 只有在矩阵状态激活时才将整数视为矩阵大小标记
+        matrixState.reset(static_cast<int>(value));
+    } else {
+        // 普通数值，可能是矩阵元素或单独的数字
+        if (matrixState.isActive()) {
+            matrixState.printElement(value);
+        } else {
+            printf("%s%g\n", getCurrentTimestamp().c_str(), value);
+            fflush(stdout);
+        }
+    }
 }
 
 void printString(const char* str) {
