@@ -13,7 +13,7 @@ EOF
 
 
 # 创建def_print分支
-git checkout -b matmul
+git checkout -b main
 
 # 添加所有文件
 git add .
@@ -26,4 +26,4 @@ git commit -m "Add matmul operations"
 # git remote add origin https://github.com/TianZhenGG/Boas.git
 
 # 推送到远程
-git push -u origin matmul
+git push -u origin main
