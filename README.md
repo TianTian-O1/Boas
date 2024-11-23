@@ -23,6 +23,106 @@ Boas 是一个基于 MLIR (Multi-Level Intermediate Representation) 开发的现
    - random 模块
    - 基础随机数操作
 
+
+## 代码示例
+
+### 1. 基础矩阵运算
+```python
+import tensor
+
+def main():
+    # 创建 2x2 矩阵
+    A = tensor.create(2,2){1,2,2,3}  # 创建矩阵 [[1,2], [2,3]]
+    B = tensor.create(2,2){5,1,7,8}  # 创建矩阵 [[5,1], [7,8]]
+    
+    # 执行矩阵乘法
+    C = tensor.matmul(A, B)
+    
+    # 打印结果
+    print(C)
+```
+
+### 2. 随机矩阵性能测试
+```python
+import tensor
+
+def main():
+    # 64 x 64 矩阵运算
+    print(1)
+    A64 = tensor.random(64, 64)
+    B64 = tensor.random(64, 64)
+    C64 = tensor.matmul(A64, B64)
+    print(2)
+    
+    # 128 x 128 矩阵运算
+    A128 = tensor.random(128, 128)
+    B128 = tensor.random(128, 128)
+    C128 = tensor.matmul(A128, B128)
+    print(3)
+    
+    # 256 x 256 矩阵运算
+    A256 = tensor.random(256, 256)
+    B256 = tensor.random(256, 256)
+    C256 = tensor.matmul(A256, B256)
+    print(4)
+    
+    # 512 x 512 矩阵运算
+    A512 = tensor.random(512, 512)
+    B512 = tensor.random(512, 512)
+    C512 = tensor.matmul(A512, B512)
+    print(5)
+    
+    # 1024 x 1024 矩阵运算
+    A1024 = tensor.random(1024, 1024)
+    B1024 = tensor.random(1024, 1024)
+    C1024 = tensor.matmul(A1024, B1024)
+    print(6)
+```
+
+### 主要 API 说明
+
+1. **tensor 模块**
+   - `tensor.create(rows, cols){values...}`: 创建指定大小的矩阵并初始化值
+   - `tensor.random(rows, cols)`: 创建指定大小的随机矩阵
+   - `tensor.matmul(A, B)`: 执行矩阵乘法运算
+   - `print(tensor)`: 打印矩阵内容
+
+
+## 性能测试
+
+### 矩阵乘法性能对比
+
+![Matrix Multiplication Performance](benchmark/results/comparison.png)
+
+性能测试结果分析：
+
+1. **当前性能状况**:
+   - Boas 目前完成了基础的矩阵运算功能
+   - 性能介于 Pure Python 和优化语言之间
+   - 在小规模矩阵运算时表现尚可
+
+2. **与其他语言对比**:
+   - NumPy (基于优化的 BLAS 库) 性能最优
+   - C++ 原生实现次之
+   - Java 和 Go 处于中等水平
+   - Boas 当前版本有较大优化空间
+
+3. **后续优化方向**:
+   - MLIR 优化管道完善
+   - 引入向量化支持
+   - 添加 GPU 加速
+   - 优化内存访问模式
+   - 集成高性能计算库
+
+性能测试环境：
+- CPU: Intel Core i7-9750H
+- Memory: 16GB DDR4
+- OS: macOS Monterey 12.3
+- Compiler: LLVM 20.0.0
+- Matrix Sizes: 64x64 to 1024x1024
+
+
+
 ## 环境要求
 
 - LLVM 20.0
@@ -139,102 +239,6 @@ cd benchmark/script
 ./run_bench.sh
 ```
 
-## 代码示例
-
-### 1. 基础矩阵运算
-```python
-import tensor
-
-def main():
-    # 创建 2x2 矩阵
-    A = tensor.create(2,2){1,2,2,3}  # 创建矩阵 [[1,2], [2,3]]
-    B = tensor.create(2,2){5,1,7,8}  # 创建矩阵 [[5,1], [7,8]]
-    
-    # 执行矩阵乘法
-    C = tensor.matmul(A, B)
-    
-    # 打印结果
-    print(C)
-```
-
-### 2. 随机矩阵性能测试
-```python
-import tensor
-
-def main():
-    # 64 x 64 矩阵运算
-    print(1)
-    A64 = tensor.random(64, 64)
-    B64 = tensor.random(64, 64)
-    C64 = tensor.matmul(A64, B64)
-    print(2)
-    
-    # 128 x 128 矩阵运算
-    A128 = tensor.random(128, 128)
-    B128 = tensor.random(128, 128)
-    C128 = tensor.matmul(A128, B128)
-    print(3)
-    
-    # 256 x 256 矩阵运算
-    A256 = tensor.random(256, 256)
-    B256 = tensor.random(256, 256)
-    C256 = tensor.matmul(A256, B256)
-    print(4)
-    
-    # 512 x 512 矩阵运算
-    A512 = tensor.random(512, 512)
-    B512 = tensor.random(512, 512)
-    C512 = tensor.matmul(A512, B512)
-    print(5)
-    
-    # 1024 x 1024 矩阵运算
-    A1024 = tensor.random(1024, 1024)
-    B1024 = tensor.random(1024, 1024)
-    C1024 = tensor.matmul(A1024, B1024)
-    print(6)
-```
-
-### 主要 API 说明
-
-1. **tensor 模块**
-   - `tensor.create(rows, cols){values...}`: 创建指定大小的矩阵并初始化值
-   - `tensor.random(rows, cols)`: 创建指定大小的随机矩阵
-   - `tensor.matmul(A, B)`: 执行矩阵乘法运算
-   - `print(tensor)`: 打印矩阵内容
-
-
-## 性能测试
-
-### 矩阵乘法性能对比
-
-![Matrix Multiplication Performance](benchmark/results/comparison.png)
-
-性能测试结果分析：
-
-1. **当前性能状况**:
-   - Boas 目前完成了基础的矩阵运算功能
-   - 性能介于 Pure Python 和优化语言之间
-   - 在小规模矩阵运算时表现尚可
-
-2. **与其他语言对比**:
-   - NumPy (基于优化的 BLAS 库) 性能最优
-   - C++ 原生实现次之
-   - Java 和 Go 处于中等水平
-   - Boas 当前版本有较大优化空间
-
-3. **后续优化方向**:
-   - MLIR 优化管道完善
-   - 引入向量化支持
-   - 添加 GPU 加速
-   - 优化内存访问模式
-   - 集成高性能计算库
-
-性能测试环境：
-- CPU: Intel Core i7-9750H
-- Memory: 16GB DDR4
-- OS: macOS Monterey 12.3
-- Compiler: LLVM 20.0.0
-- Matrix Sizes: 64x64 to 1024x1024
 
 ## 开发路线图
 
