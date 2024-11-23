@@ -117,25 +117,25 @@ Number of AST nodes: 2
 [DEBUG] Processing statement kind: 9
 [DEBUG] generateMLIRForNode kind: 9
 [DEBUG] generateMLIRForNode kind: 0
-ld: warning: dylib (/Users/mac/llvm-install/lib/libmlir_c_runner_utils.dylib) was built for newer macOS version (12.7) than being linked (12.0)
-ld: warning: dylib (/Users/mac/vscode/Boas/build/lib/libmatrix-runtime.dylib) was built for newer macOS version (12.7) than being linked (12.0)
-ld: warning: dylib (/Users/mac/llvm-install/lib/libmlir_runner_utils.dylib) was built for newer macOS version (12.7) than being linked (12.0)
 ld: warning: dylib (/Users/mac/llvm-install/lib/libmlir_float16_utils.dylib) was built for newer macOS version (12.7) than being linked (12.0)
-        1.42 real         0.68 user         0.12 sys
-            20578304  maximum resident set size
+ld: warning: dylib (/Users/mac/llvm-install/lib/libmlir_runner_utils.dylib) was built for newer macOS version (12.7) than being linked (12.0)
+ld: warning: dylib (/Users/mac/vscode/Boas/build/lib/libmatrix-runtime.dylib) was built for newer macOS version (12.7) than being linked (12.0)
+ld: warning: dylib (/Users/mac/llvm-install/lib/libmlir_c_runner_utils.dylib) was built for newer macOS version (12.7) than being linked (12.0)
+        1.38 real         0.68 user         0.11 sys
+            20611072  maximum resident set size
                    0  average shared memory size
                    0  average unshared data size
                    0  average unshared stack size
-               33118  page reclaims
-                  16  page faults
+               33115  page reclaims
+                  15  page faults
                    0  swaps
                    0  block input operations
                    0  block output operations
                    0  messages sent
                    0  messages received
                    0  signals received
-                   9  voluntary context switches
-                1281  involuntary context switches
-            75124856  instructions retired
-            57842371  cycles elapsed
-             1241088  peak memory footprint
+                   8  voluntary context switches
+                1404  involuntary context switches
+            75417876  instructions retired
+            55518817  cycles elapsed
+             1277952  peak memory footprint
