@@ -1,0 +1,141 @@
+Initializing MLIRGen...
+MLIRGen initialized successfully with all required dialects
+=== Starting MLIR Generation ===
+Number of AST nodes: 2
+[DEBUG] generateMLIRForNode kind: 5
+[DEBUG] Processing import: tensor
+[DEBUG] generateMLIRForNode kind: 4
+[DEBUG] Generating MLIR for function: main
+[DEBUG] Processing function body with 25 statements
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor using optimized approach
+[DEBUG] Optimized tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor using optimized approach
+[DEBUG] Optimized tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 12
+[DEBUG] Generating matrix multiplication
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor using optimized approach
+[DEBUG] Optimized tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor using optimized approach
+[DEBUG] Optimized tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 12
+[DEBUG] Generating matrix multiplication
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor using optimized approach
+[DEBUG] Optimized tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor using optimized approach
+[DEBUG] Optimized tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 12
+[DEBUG] Generating matrix multiplication
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor using optimized approach
+[DEBUG] Optimized tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor using optimized approach
+[DEBUG] Optimized tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 12
+[DEBUG] Generating matrix multiplication
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor using optimized approach
+[DEBUG] Optimized tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor using optimized approach
+[DEBUG] Optimized tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 12
+[DEBUG] Generating matrix multiplication
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+ld: warning: dylib (/Users/mac/vscode/Boas/build/lib/libmatrix-runtime.dylib) was built for newer macOS version (12.7) than being linked (12.0)
+ld: warning: dylib (/Users/mac/llvm-install/lib/libmlir_float16_utils.dylib) was built for newer macOS version (12.7) than being linked (12.0)
+ld: warning: dylib (/Users/mac/llvm-install/lib/libmlir_c_runner_utils.dylib) was built for newer macOS version (12.7) than being linked (12.0)
+ld: warning: dylib (/Users/mac/llvm-install/lib/libmlir_runner_utils.dylib) was built for newer macOS version (12.7) than being linked (12.0)
+        1.18 real         0.60 user         0.08 sys
+            20668416  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               33021  page reclaims
+                  14  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   9  voluntary context switches
+                1103  involuntary context switches
+            75243360  instructions retired
+            50845302  cycles elapsed
+             1290240  peak memory footprint

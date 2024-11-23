@@ -112,6 +112,8 @@ else
     echo "Warning: boas_bench.bs not found"
 fi
 
+
+
 # 返回到scripts目录以继续执行其他测试
 cd benchmark/scripts
 
@@ -123,4 +125,56 @@ if [ -f "plot.py" ]; then
 else
     echo "Error: plot.py not found"
     exit 1
+fi
+
+
+
+# 运行性能分析
+echo "Running performance analysis..."
+if [ "$(uname)" == "Darwin" ]; then
+    echo "Using macOS performance tools..."
+    mkdir -p ../results/instruments
+    
+    cd ../../build  # 切换到包含 matrix-compiler 的目录
+    
+    # 使用 time 命令进行完整程序分析
+    echo "Running full program analysis..."
+    /usr/bin/time -l ./matrix-compiler --run ../benchmark/src/boas_bench.bs \
+        2> ../benchmark/results/instruments/full_profile.txt
+    
+    # CPU 采样分析 - 使用后台运行和进程 ID
+    echo "Running CPU sampling..."
+    ./matrix-compiler --run ../benchmark/src/boas_bench.bs & 
+    COMPILER_PID=$!
+    sleep 1  # 给进程启动的时间
+    
+    if ps -p $COMPILER_PID > /dev/null; then
+        sample $COMPILER_PID 5 -file ../benchmark/results/instruments/cpu_profile.txt
+        wait $COMPILER_PID
+    else
+        echo "Warning: Could not sample process - it may have finished too quickly"
+    fi
+    
+    cd ../benchmark/scripts  # 切回原目录
+    
+    # 生成简单的性能报告
+    echo "Generating performance report..."
+    {
+        echo "Performance Analysis Report"
+        echo "=========================="
+        echo
+        echo "Memory Usage:"
+        grep "maximum resident set size" ../results/instruments/full_profile.txt
+        echo
+        echo "CPU Profile Summary:"
+        if [ -f "../results/instruments/cpu_profile.txt" ]; then
+            head -n 20 ../results/instruments/cpu_profile.txt
+        else
+            echo "CPU profile not available"
+        fi
+    } > ../results/instruments/analysis_report.txt
+    
+    echo "Performance analysis completed. Results in ../results/instruments/"
+else
+    echo "Warning: No performance analysis tools found"
 fi

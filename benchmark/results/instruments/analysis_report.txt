@@ -1,0 +1,27 @@
+Performance Analysis Report
+==========================
+
+Memory Usage:
+            20668416  maximum resident set size
+
+CPU Profile Summary:
+Analysis of sampling matrix-compiler (pid 52228) every 1 millisecond
+Process:         matrix-compiler [52228]
+Path:            /Users/USER/*/matrix-compiler
+Load Address:    0x104c37000
+Identifier:      matrix-compiler
+Version:         0
+Code Type:       X86-64
+Platform:        macOS
+Parent Process:  bash [52016]
+
+Date/Time:       2024-11-23 14:20:19.007 +0800
+Launch Time:     2024-11-23 14:20:17.902 +0800
+OS Version:      macOS 12.7.6 (21H1320)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+----
+
+Call graph:
+    245 Thread_90479324   DispatchQueue_1: com.apple.main-thread  (serial)
+    + 245 start  (in dyld) + 462  [0x10671452e]

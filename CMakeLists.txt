@@ -69,6 +69,7 @@ add_library(matrix-lib
     lib/mlirops/MLIRGenTiming.cpp
     lib/mlirops/MLIRGenUtils.cpp
     lib/mlirops/MLIRGenOptimization.cpp
+    lib/mlirops/TensorMemoryPool.cpp
     lib/Debug.cpp
 )
 
