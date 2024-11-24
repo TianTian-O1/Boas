@@ -56,6 +56,9 @@ private:
     std::unique_ptr<ExprAST> parseIdentifier();
     std::unique_ptr<ExprAST> parseExpressionRHS(std::unique_ptr<ExprAST> lhs);
     std::unique_ptr<ExprAST> parsePrintExpr();
+
+    // 添加 parseList 声明
+    std::unique_ptr<ExprAST> parseList();
 };
 
 } // namespace matrix

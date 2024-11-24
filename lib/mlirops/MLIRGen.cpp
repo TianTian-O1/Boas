@@ -159,14 +159,11 @@ mlir::ModuleOp MLIRGen::generateMLIR(const std::vector<std::unique_ptr<ExprAST>>
 }
 
 mlir::Value MLIRGen::generateMLIRForNode(const ExprAST* node) {
-    if (!node) {
-        std::cerr << "Error: Null node passed to generateMLIRForNode\n";
-        return nullptr;
-    }
-
-    std::cerr << "[DEBUG] generateMLIRForNode kind: " << node->getKind() << "\n";
-
+    if (!node) return nullptr;
+    
     try {
+        std::cerr << "[DEBUG] generateMLIRForNode kind: " << node->getKind() << "\n";
+        
         switch (node->getKind()) {
             case ExprAST::Number:
                 return generateNumberMLIR(static_cast<const NumberExprAST*>(node));
@@ -202,6 +199,10 @@ mlir::Value MLIRGen::generateMLIRForNode(const ExprAST* node) {
                 }
                 std::cerr << "Unknown time function\n";
                 return nullptr;
+            case ExprAST::Kind::ListIndex:
+                return generateListIndex(llvm::cast<ListIndexExprAST>(node));
+            case ExprAST::Kind::List:
+                return generateList(llvm::cast<ListExprAST>(node));
             default:
                 std::cerr << "Error: Unhandled node kind: " << node->getKind() << "\n";
                 return nullptr;
@@ -217,6 +218,47 @@ std::string MLIRGen::getMLIRString(mlir::ModuleOp module) {
     llvm::raw_string_ostream os(output);
     module.print(os);
     return output;
+}
+
+mlir::Value MLIRGen::generate(const ExprAST* expr) {
+    if (!expr) return nullptr;
+    
+    switch (expr->getKind()) {
+        case ExprAST::Kind::Number:
+            return createConstantF64(static_cast<const NumberExprAST*>(expr)->getValue());
+            
+        case ExprAST::Kind::Variable:
+            return symbolTable[static_cast<const VariableExprAST*>(expr)->getName()];
+            
+        case ExprAST::Kind::List:
+            return generateList(static_cast<const ListExprAST*>(expr));
+            
+        case ExprAST::Kind::ListIndex:
+            return generateListIndex(static_cast<const ListIndexExprAST*>(expr));
+            
+        case ExprAST::Kind::Assignment:
+            return generateMLIRForAssignment(static_cast<const AssignmentExprAST*>(expr));
+            
+        case ExprAST::Kind::Function:
+            return generateMLIRForFunction(static_cast<const FunctionAST*>(expr));
+            
+        case ExprAST::Kind::Call:
+            return generateMLIRForCall(static_cast<const CallExprAST*>(expr));
+            
+        case ExprAST::Kind::Print:
+            return generateMLIRForPrint(static_cast<const PrintExprAST*>(expr));
+            
+        case ExprAST::Kind::Matmul:
+            return generateMLIRForMatmul(static_cast<const MatmulExprAST*>(expr));
+            
+        case ExprAST::Kind::TensorRandom:
+            return generateMLIRForTensorRandom(static_cast<const TensorRandomExprAST*>(expr));
+            
+        default:
+            std::cerr << "Error: Unhandled expression kind in generate(): " 
+                      << expr->getKind() << "\n";
+            return nullptr;
+    }
 }
 
 } // namespace matrix

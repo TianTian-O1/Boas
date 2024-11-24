@@ -99,6 +99,20 @@ private:
                                          mlir::Value result,
                                          int64_t M, int64_t N, int64_t K);
     void addMemoryAccessAttributes(mlir::Operation* op);
+
+    // 添加列表相关的辅助方法
+    mlir::Value createList(const std::vector<mlir::Value>& elements);
+    mlir::Value getListElement(mlir::Value list, mlir::Value index);
+    mlir::Value setListElement(mlir::Value list, mlir::Value index, mlir::Value value);
+    
+    // 添加 generate 函数声明
+    mlir::Value generate(const ExprAST* expr);
+
+    mlir::Value generateListIndex(const ListIndexExprAST* expr);
+
+public:
+    // 列表操作的公共接口
+    mlir::Value generateList(const ListExprAST* list);
 };
 
 } // namespace matrix

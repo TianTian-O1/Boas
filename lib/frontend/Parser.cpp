@@ -159,7 +159,27 @@ std::unique_ptr<ExprAST> Parser::parseIdentifierExpr() {
     std::string name = current_token_.value;
     getNextToken(); // eat identifier
     
-    // Check if it's an assignment
+    // 检查是否是列表索引访问
+    if (current_token_.kind == tok_left_bracket) {
+        getNextToken(); // eat '['
+        
+        // 解析索引表达式
+        auto index = parseExpression();
+        if (!index) return nullptr;
+        
+        if (current_token_.kind != tok_right_bracket) {
+            return LogError("Expected ']' after index");
+        }
+        getNextToken(); // eat ']'
+        
+        // 创建列表索引表达式
+        return std::make_unique<ListIndexExprAST>(
+            std::make_unique<VariableExprAST>(name),
+            std::move(index)
+        );
+    }
+    
+    // 检查是否是赋值
     if (current_token_.kind == tok_equal) {
         getNextToken(); // eat '='
         auto value = parseExpression();
@@ -167,7 +187,7 @@ std::unique_ptr<ExprAST> Parser::parseIdentifierExpr() {
         return std::make_unique<AssignmentExprAST>(name, std::move(value));
     }
     
-    // Check if it's a function call
+    // 检查是否是函数调用
     if (current_token_.kind == tok_left_paren) {
         getNextToken(); // eat '('
         std::vector<std::unique_ptr<ExprAST>> args = parseCallArgs();
@@ -178,7 +198,7 @@ std::unique_ptr<ExprAST> Parser::parseIdentifierExpr() {
         return std::make_unique<CallExprAST>(name, std::move(args));
     }
     
-    // If it's not an assignment or function call, it's a variable reference
+    // 如果都不是，就是普通的变量引用
     return std::make_unique<VariableExprAST>(name);
 }
 
@@ -646,7 +666,7 @@ std::unique_ptr<ExprAST> Parser::parsePrimary() {
             return parseParenExpr();
             
         case tok_left_bracket:
-            return parseArrayLiteral();
+            return parseList();
             
         case tok_tensor:
             return parseTensorExpr();
@@ -666,6 +686,33 @@ std::unique_ptr<ExprAST> Parser::parsePrimary() {
                       current_token_.value + "'").c_str());
             return LogError("Expected expression");
     }
+}
+
+std::unique_ptr<ExprAST> Parser::parseList() {
+    getNextToken(); // eat '['
+    
+    std::vector<std::unique_ptr<ExprAST>> elements;
+    
+    // 解析列表元素
+    while (current_token_.kind != tok_right_bracket) {
+        if (auto element = parseExpression()) {
+            elements.push_back(std::move(element));
+        } else {
+            return nullptr;
+        }
+        
+        // 处理元素分隔符
+        if (current_token_.kind != tok_right_bracket) {
+            if (current_token_.kind != tok_comma) {
+                return LogError("Expected ',' or ']' in list");
+            }
+            getNextToken(); // eat ','
+        }
+    }
+    
+    getNextToken(); // eat ']'
+    
+    return std::make_unique<ListExprAST>(std::move(elements));
 }
 
 } // namespace matrix

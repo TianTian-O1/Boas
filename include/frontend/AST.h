@@ -34,7 +34,9 @@ public:
         TensorCreate,
         Matmul,
         TensorRandom,  // Add this new kind
-        TimeCall
+        TimeCall,
+        List,
+        ListIndex
     };
     
     virtual Kind getKind() const = 0;
@@ -420,6 +422,61 @@ public:
     }
     
     Kind getKind() const override { return Kind::Binary; }
+};
+
+// 列表表达式
+class ListExprAST : public ExprAST {
+    std::vector<std::unique_ptr<ExprAST>> elements;
+public:
+    ListExprAST(std::vector<std::unique_ptr<ExprAST>> elements)
+        : elements(std::move(elements)) {}
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        std::cout << "[";
+        for (size_t i = 0; i < elements.size(); ++i) {
+            if (i > 0) std::cout << ", ";
+            elements[i]->dump(0);
+        }
+        std::cout << "]";
+    }
+
+    const std::vector<std::unique_ptr<ExprAST>>& getElements() const { 
+        return elements; 
+    }
+
+    Kind getKind() const override { return Kind::List; }
+    
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::List;
+    }
+};
+
+// 列表索引访问表达式
+class ListIndexExprAST : public ExprAST {
+    std::unique_ptr<ExprAST> list;
+    std::unique_ptr<ExprAST> index;
+public:
+    ListIndexExprAST(std::unique_ptr<ExprAST> list, 
+                     std::unique_ptr<ExprAST> index)
+        : list(std::move(list)), index(std::move(index)) {}
+    
+    const ExprAST* getList() const { return list.get(); }
+    const ExprAST* getIndex() const { return index.get(); }
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        list->dump(0);
+        std::cout << "[";
+        index->dump(0);
+        std::cout << "]";
+    }
+    
+    Kind getKind() const override { return Kind::ListIndex; }
+    
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::ListIndex;
+    }
 };
 
 } // namespace matrix

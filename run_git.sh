@@ -19,7 +19,7 @@ git checkout -b main
 git add .
 
 # 创建初始提交
-git commit -m "matmul optimizations"
+git commit -m "add list index"
 
 
 # 添加远程仓库
