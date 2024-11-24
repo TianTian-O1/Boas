@@ -46,37 +46,18 @@ def main():
 ```python
 import tensor
 
+def benchmark(size):
+    # 4 x 4
+    A4 = tensor.random(size,size)
+    B4 = tensor.random(size,size)
+    C4 = tensor.matmul(A4, B4)
+    return C4
+
 def main():
-    # 64 x 64 矩阵运算
-    print(1)
-    A64 = tensor.random(64, 64)
-    B64 = tensor.random(64, 64)
-    C64 = tensor.matmul(A64, B64)
-    print(2)
-    
-    # 128 x 128 矩阵运算
-    A128 = tensor.random(128, 128)
-    B128 = tensor.random(128, 128)
-    C128 = tensor.matmul(A128, B128)
-    print(3)
-    
-    # 256 x 256 矩阵运算
-    A256 = tensor.random(256, 256)
-    B256 = tensor.random(256, 256)
-    C256 = tensor.matmul(A256, B256)
-    print(4)
-    
-    # 512 x 512 矩阵运算
-    A512 = tensor.random(512, 512)
-    B512 = tensor.random(512, 512)
-    C512 = tensor.matmul(A512, B512)
-    print(5)
-    
-    # 1024 x 1024 矩阵运算
-    A1024 = tensor.random(1024, 1024)
-    B1024 = tensor.random(1024, 1024)
-    C1024 = tensor.matmul(A1024, B1024)
-    print(6)
+
+    size = 4
+    C4 = benchmark(size)
+    print(C4)
 ```
 
 ### 主要 API 说明

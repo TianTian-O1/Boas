@@ -113,18 +113,8 @@ mlir::ModuleOp MLIRGen::generateMLIR(const std::vector<std::unique_ptr<ExprAST>>
     std::cerr << "Number of AST nodes: " << ast.size() << "\n";
     
     try {
-        // Create main function
-        auto mainType = mlir::FunctionType::get(context.get(), {}, {builder->getI32Type()});
-        auto mainFunc = mlir::func::FuncOp::create(
-            builder->getUnknownLoc(),
-            "main",
-            mainType
-        );
-        
-        auto entryBlock = mainFunc.addEntryBlock();
-        builder->setInsertionPointToStart(entryBlock);
-        
-        module.push_back(mainFunc);
+        // 不再在这里创建 main 函数
+        // 而是让它通过 AST 节点处理来创建
         
         // Process AST nodes
         for (const auto& node : ast) {
@@ -134,19 +124,34 @@ mlir::ModuleOp MLIRGen::generateMLIR(const std::vector<std::unique_ptr<ExprAST>>
             }
         }
         
-        // Add return statement
-        auto zero = builder->create<mlir::arith::ConstantIntOp>(
-            builder->getUnknownLoc(),
-            0,
-            builder->getI32Type()
-        );
-        builder->create<mlir::func::ReturnOp>(
-            builder->getUnknownLoc(),
-            mlir::ValueRange{zero}
-        );
-
-        return module;
+        // 检查是否存在 main 函数
+        if (!module.lookupSymbol<mlir::func::FuncOp>("main")) {
+            // 如果不存在，创建一个默认的 main 函数
+            auto mainType = mlir::FunctionType::get(context.get(), {}, {builder->getI32Type()});
+            auto mainFunc = mlir::func::FuncOp::create(
+                builder->getUnknownLoc(),
+                "main",
+                mainType
+            );
+            
+            auto entryBlock = mainFunc.addEntryBlock();
+            builder->setInsertionPointToStart(entryBlock);
+            
+            // Add return statement
+            auto zero = builder->create<mlir::arith::ConstantIntOp>(
+                builder->getUnknownLoc(),
+                0,
+                builder->getI32Type()
+            );
+            builder->create<mlir::func::ReturnOp>(
+                builder->getUnknownLoc(),
+                mlir::ValueRange{zero}
+            );
+            
+            module.push_back(mainFunc);
+        }
         
+        return module;
     } catch (const std::exception& e) {
         std::cerr << "Error in generateMLIR: " << e.what() << "\n";
         return nullptr;

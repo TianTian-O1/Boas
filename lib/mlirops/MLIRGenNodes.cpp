@@ -3,6 +3,9 @@
 
 namespace matrix {
 
+
+// MLIRGenNodes.cpp
+
 mlir::Value MLIRGen::generateMLIRForFunction(const FunctionAST* func) {
     if (!func) {
         std::cerr << "Error: Null function AST\n";
@@ -10,31 +13,411 @@ mlir::Value MLIRGen::generateMLIRForFunction(const FunctionAST* func) {
     }
 
     std::cerr << "[DEBUG] Generating MLIR for function: " << func->getName() << "\n";
+    
+    auto loc = builder->getUnknownLoc();
 
-    try {
-        const auto& body = func->getBody();
-        std::cerr << "[DEBUG] Processing function body with " << body.size() << " statements\n";
-
-        mlir::Value lastValue;
-        for (const auto& stmt : body) {
-            if (!stmt) {
-                std::cerr << "Warning: Null statement in function body\n";
-                continue;
-            }
-
-            std::cerr << "[DEBUG] Processing statement kind: " << stmt->getKind() << "\n";
-            lastValue = generateMLIRForNode(stmt.get());
-            
-            if (!lastValue) {
-                std::cerr << "Warning: Failed to generate MLIR for statement\n";
-            }
-        }
-
-        return lastValue;
-    } catch (const std::exception& e) {
-        std::cerr << "Error in generateMLIRForFunction: " << e.what() << "\n";
-        return nullptr;
+    // Create function type with appropriate return type and parameters
+    mlir::Type returnType;
+    std::vector<mlir::Type> paramTypes;
+    
+    if (func->getName() == "benchmark") {
+        // benchmark function returns dynamic matrix and takes size parameter
+        returnType = mlir::MemRefType::get(
+            {mlir::ShapedType::kDynamic, mlir::ShapedType::kDynamic},
+            builder->getF64Type()
+        );
+        paramTypes.push_back(builder->getIndexType()); // Add size parameter
+    } else {
+        // other functions return f64
+        returnType = builder->getF64Type();
     }
+
+    // Create function type with parameters
+    auto funcType = mlir::FunctionType::get(builder->getContext(), paramTypes, {returnType});
+    mlir::func::FuncOp funcOp;
+    
+    if (auto existingFunc = module.lookupSymbol<mlir::func::FuncOp>(func->getName())) {
+        funcOp = existingFunc;
+    } else {
+        funcOp = mlir::func::FuncOp::create(loc, func->getName(), funcType);
+        module.push_back(funcOp);
+    }
+
+    // Create entry block with parameters
+    auto* entryBlock = funcOp.addEntryBlock();
+    builder->setInsertionPointToStart(entryBlock);
+
+    // Save symbol table state
+    std::map<std::string, mlir::Value> oldSymbols = symbolTable;
+
+    // Add parameters to symbol table if any
+    if (func->getName() == "benchmark" && entryBlock->getNumArguments() > 0) {
+        symbolTable["size"] = entryBlock->getArgument(0);
+    }
+
+    // Process function body
+    mlir::Value result;
+    for (const auto& stmt : func->getBody()) {
+        result = generateMLIRForNode(stmt.get());
+        if (!result) {
+            std::cerr << "[DEBUG] Statement generated null value\n";
+            continue;
+        }
+    }
+
+    // Handle return value
+    if (result) {
+        if (func->getName() == "benchmark") {
+            // For benchmark function
+            if (!mlir::isa<mlir::MemRefType>(result.getType())) {
+                std::cerr << "Error: Benchmark function must return memref type\n";
+                return nullptr;
+            }
+
+            // Create a copy of the result to ensure proper memory management
+            auto memrefType = mlir::cast<mlir::MemRefType>(result.getType());
+            auto m = builder->create<mlir::memref::DimOp>(loc, result, 0);
+            auto n = builder->create<mlir::memref::DimOp>(loc, result, 1);
+            
+            // Allocate new memory for the return value
+            auto returnMemref = builder->create<mlir::memref::AllocOp>(
+                loc,
+                memrefType,
+                mlir::ValueRange{m, n}
+            );
+            
+            // Copy data to the new memory
+            auto c0 = createConstantIndex(0);
+            auto c1 = createConstantIndex(1);
+            
+            builder->create<mlir::scf::ForOp>(
+                loc, c0, m, c1,
+                mlir::ValueRange{},
+                [&](mlir::OpBuilder& i_builder, mlir::Location i_loc, mlir::Value i, mlir::ValueRange) {
+                    i_builder.create<mlir::scf::ForOp>(
+                        i_loc, c0, n, c1,
+                        mlir::ValueRange{},
+                        [&](mlir::OpBuilder& j_builder, mlir::Location j_loc, mlir::Value j, mlir::ValueRange) {
+                            // Load value from source
+                            auto val = j_builder.create<mlir::memref::LoadOp>(
+                                j_loc,
+                                result,
+                                mlir::ValueRange{i, j}
+                            );
+                            
+                            // Store value to destination
+                            j_builder.create<mlir::memref::StoreOp>(
+                                j_loc,
+                                val,
+                                returnMemref,
+                                mlir::ValueRange{i, j}
+                            );
+                            
+                            j_builder.create<mlir::scf::YieldOp>(j_loc);
+                        }
+                    );
+                    i_builder.create<mlir::scf::YieldOp>(i_loc);
+                }
+            );
+            
+            // Deallocate the original result if it's a temporary
+            if (!isStoredInSymbolTable(result)) {
+                builder->create<mlir::memref::DeallocOp>(loc, result);
+            }
+            
+            // Return the new memory
+            builder->create<mlir::func::ReturnOp>(loc, mlir::ValueRange{returnMemref});
+        } else {
+            // For other functions
+            mlir::Value returnValue;
+            if (mlir::isa<mlir::MemRefType>(result.getType())) {
+                // Get first element of matrix
+                auto zero = createConstantIndex(0);
+                returnValue = builder->create<mlir::memref::LoadOp>(
+                    loc,
+                    result,
+                    mlir::ValueRange{zero, zero}
+                );
+                
+                // Clean up temporary matrix
+                if (!isStoredInSymbolTable(result)) {
+                    builder->create<mlir::memref::DeallocOp>(loc, result);
+                }
+            } else if (result.getType().isF64()) {
+                returnValue = result;
+            } else if (mlir::isa<mlir::IndexType>(result.getType())) {
+                returnValue = builder->create<mlir::arith::SIToFPOp>(
+                    loc,
+                    builder->getF64Type(),
+                    result
+                );
+            } else {
+                returnValue = builder->create<mlir::arith::ConstantFloatOp>(
+                    loc,
+                    llvm::APFloat(0.0),
+                    builder->getF64Type()
+                );
+            }
+            builder->create<mlir::func::ReturnOp>(loc, mlir::ValueRange{returnValue});
+        }
+    } else {
+        // Handle default return values
+        if (func->getName() == "benchmark") {
+            auto size = entryBlock->getArgument(0);
+            auto memrefType = mlir::MemRefType::get(
+                {mlir::ShapedType::kDynamic, mlir::ShapedType::kDynamic},
+                builder->getF64Type()
+            );
+            auto empty = builder->create<mlir::memref::AllocOp>(
+                loc,
+                memrefType,
+                mlir::ValueRange{size, size}
+            );
+            
+            // Initialize to zeros
+            initializeMemRefToZero(empty, size, size);
+            
+            builder->create<mlir::func::ReturnOp>(loc, mlir::ValueRange{empty});
+        } else {
+            auto zero = builder->create<mlir::arith::ConstantFloatOp>(
+                loc,
+                llvm::APFloat(0.0),
+                builder->getF64Type()
+            );
+            builder->create<mlir::func::ReturnOp>(loc, mlir::ValueRange{zero});
+        }
+    }
+
+    // Restore symbol table
+    symbolTable = oldSymbols;
+
+    return result;
+}
+
+// Helper function to initialize memref to zero
+void MLIRGen::initializeMemRefToZero(mlir::Value memref, mlir::Value rows, mlir::Value cols) {
+    auto loc = builder->getUnknownLoc();
+    auto c0 = createConstantIndex(0);
+    auto c1 = createConstantIndex(1);
+    auto zero = createConstantF64(0.0);
+    
+    builder->create<mlir::scf::ForOp>(
+        loc,
+        c0,
+        rows,
+        c1,
+        mlir::ValueRange{},
+        [&](mlir::OpBuilder& i_builder, mlir::Location i_loc, mlir::Value i, mlir::ValueRange) {
+            i_builder.create<mlir::scf::ForOp>(
+                i_loc,
+                c0,
+                cols,
+                c1,
+                mlir::ValueRange{},
+                [&](mlir::OpBuilder& j_builder, mlir::Location j_loc, mlir::Value j, mlir::ValueRange) {
+                    j_builder.create<mlir::memref::StoreOp>(
+                        j_loc,
+                        zero,
+                        memref,
+                        mlir::ValueRange{i, j}
+                    );
+                    j_builder.create<mlir::scf::YieldOp>(j_loc);
+                }
+            );
+            i_builder.create<mlir::scf::YieldOp>(i_loc);
+        }
+    );
+}
+
+void MLIRGen::handleFunctionReturn(const FunctionAST* func, mlir::Value result, mlir::Block* entryBlock) {
+    auto loc = builder->getUnknownLoc();
+    
+    if (result) {
+        if (func->getName() == "benchmark") {
+            // For benchmark function, return memref directly
+            if (!mlir::isa<mlir::MemRefType>(result.getType())) {
+                std::cerr << "Error: Benchmark function must return memref type\n";
+                return;
+            }
+            builder->create<mlir::func::ReturnOp>(loc, mlir::ValueRange{result});
+        } else {
+            // For other functions, ensure f64 return type
+            mlir::Value returnValue;
+            if (mlir::isa<mlir::MemRefType>(result.getType())) {
+                // If result is a matrix, return the first element or 0.0
+                auto zero = createConstantIndex(0);
+                auto value = builder->create<mlir::memref::LoadOp>(
+                    loc,
+                    result,
+                    mlir::ValueRange{zero, zero}
+                );
+                returnValue = value;
+            } else if (result.getType().isF64()) {
+                returnValue = result;
+            } else if (mlir::isa<mlir::IndexType>(result.getType())) {
+                // Convert index to f64
+                returnValue = builder->create<mlir::arith::SIToFPOp>(
+                    loc,
+                    builder->getF64Type(),
+                    result
+                );
+            } else {
+                // Default to 0.0 for unsupported types
+                returnValue = builder->create<mlir::arith::ConstantFloatOp>(
+                    loc,
+                    llvm::APFloat(0.0),
+                    builder->getF64Type()
+                );
+            }
+            builder->create<mlir::func::ReturnOp>(loc, mlir::ValueRange{returnValue});
+        }
+    } else {
+        // Handle default return values
+        handleDefaultReturn(func, entryBlock);
+    }
+}
+
+void MLIRGen::handleDefaultReturn(const FunctionAST* func, mlir::Block* entryBlock) {
+    auto loc = builder->getUnknownLoc();
+    
+    if (func->getName() == "benchmark") {
+        // Get size from parameter
+        auto size = entryBlock->getArgument(0);
+        
+        // Create default square matrix of the given size
+        auto memrefType = mlir::MemRefType::get(
+            {mlir::ShapedType::kDynamic, mlir::ShapedType::kDynamic},
+            builder->getF64Type()
+        );
+        auto empty = builder->create<mlir::memref::AllocOp>(
+            loc,
+            memrefType,
+            mlir::ValueRange{size, size}
+        );
+        
+        // Initialize to zeros
+        auto c0 = createConstantIndex(0);
+        auto c1 = createConstantIndex(1);
+        auto zero = createConstantF64(0.0);
+        
+        builder->create<mlir::scf::ForOp>(
+            loc,
+            c0,
+            size,
+            c1,
+            mlir::ValueRange{},
+            [&](mlir::OpBuilder& i_builder, mlir::Location i_loc, mlir::Value i, mlir::ValueRange) {
+                i_builder.create<mlir::scf::ForOp>(
+                    i_loc,
+                    c0,
+                    size,
+                    c1,
+                    mlir::ValueRange{},
+                    [&](mlir::OpBuilder& j_builder, mlir::Location j_loc, mlir::Value j, mlir::ValueRange) {
+                        j_builder.create<mlir::memref::StoreOp>(
+                            j_loc,
+                            zero,
+                            empty,
+                            mlir::ValueRange{i, j}
+                        );
+                        j_builder.create<mlir::scf::YieldOp>(j_loc);
+                    }
+                );
+                i_builder.create<mlir::scf::YieldOp>(i_loc);
+            }
+        );
+        
+        builder->create<mlir::func::ReturnOp>(loc, mlir::ValueRange{empty});
+    } else {
+        // Return 0.0 for regular functions
+        auto zero = builder->create<mlir::arith::ConstantFloatOp>(
+            loc,
+            llvm::APFloat(0.0),
+            builder->getF64Type()
+        );
+        builder->create<mlir::func::ReturnOp>(loc, mlir::ValueRange{zero});
+    }
+}
+
+mlir::Value MLIRGen::generateMLIRForCall(const CallExprAST* expr) {
+    auto loc = builder->getUnknownLoc();
+    const std::string& callee = expr->getCallee();
+    
+    // Special handling for benchmark function
+    if (callee == "benchmark") {
+        std::vector<mlir::Value> args;
+        
+        // Convert all arguments to the expected type (index)
+        for (const auto& arg : expr->getArgs()) {
+            auto argValue = generateMLIRForNode(arg.get());
+            if (!argValue) {
+                std::cerr << "Error: Failed to generate argument for benchmark\n";
+                return nullptr;
+            }
+            
+            // Convert argument to index type if needed
+            if (!mlir::isa<mlir::IndexType>(argValue.getType())) {
+                if (mlir::isa<mlir::IntegerType>(argValue.getType()) || 
+                    argValue.getType().isIndex()) {
+                    argValue = builder->create<mlir::arith::IndexCastOp>(
+                        loc,
+                        builder->getIndexType(),
+                        argValue
+                    );
+                } else {
+                    std::cerr << "Error: Benchmark argument must be convertible to index\n";
+                    return nullptr;
+                }
+            }
+            args.push_back(argValue);
+        }
+        
+        // Create memref type for return value
+        auto returnType = mlir::MemRefType::get(
+            {mlir::ShapedType::kDynamic, mlir::ShapedType::kDynamic},
+            builder->getF64Type()
+        );
+        
+        // Create function call
+        auto funcType = mlir::FunctionType::get(
+            builder->getContext(),
+            {builder->getIndexType()},
+            {returnType}
+        );
+        
+        auto callOp = builder->create<mlir::func::CallOp>(
+            loc,
+            callee,
+            funcType.getResults(),
+            args
+        );
+        
+        return callOp.getResult(0);
+    } 
+    
+    // Handle other function calls normally
+    std::vector<mlir::Value> args;
+    for (const auto& arg : expr->getArgs()) {
+        auto argValue = generateMLIRForNode(arg.get());
+        if (!argValue) {
+            std::cerr << "Error: Failed to generate argument\n";
+            return nullptr;
+        }
+        args.push_back(argValue);
+    }
+    
+    auto funcType = mlir::FunctionType::get(
+        builder->getContext(),
+        {},
+        {builder->getF64Type()}
+    );
+    
+    return builder->create<mlir::func::CallOp>(
+        loc,
+        callee,
+        funcType.getResults(),
+        args
+    ).getResult(0);
 }
 
 mlir::Value MLIRGen::generateMLIRForImport(const ImportAST* import) {
@@ -65,6 +448,20 @@ mlir::Value MLIRGen::generateMLIRForVariable(const VariableExprAST* expr) {
 mlir::Value MLIRGen::generateMLIRForAssignment(const AssignmentExprAST* expr) {
     auto value = generateMLIRForNode(expr->getValue());
     if (!value) return nullptr;
+    
+    // 如果是数字类型，确保转换为正确的 MLIR 类型
+    if (auto* numExpr = llvm::dyn_cast<NumberExprAST>(expr->getValue())) {
+        if (value.getType().isF64()) {
+            // 对于矩阵维度，我们需要将浮点数转换为整数
+            auto intValue = builder->create<mlir::arith::FPToSIOp>(
+                builder->getUnknownLoc(),
+                builder->getI32Type(),
+                value
+            );
+            symbolTable[expr->getName()] = intValue;
+            return intValue;
+        }
+    }
     
     symbolTable[expr->getName()] = value;
     return value;
@@ -109,30 +506,6 @@ mlir::Value MLIRGen::generateMLIRForBinary(const BinaryExprAST* expr) {
         return result;
     }
     
-    return nullptr;
-}
-
-mlir::Value MLIRGen::generateMLIRForCall(const CallExprAST* expr) {
-    std::cerr << "[DEBUG] Generating Call operation\n";
-    const std::string& callee = expr->getCallee();
-    
-    if (callee == "matmul") {
-        if (expr->getArgs().size() != 2) {
-            std::cerr << "Error: matmul requires exactly 2 arguments\n";
-            return nullptr;
-        }
-        auto lhs = generateMLIRForNode(expr->getArgs()[0].get());
-        auto rhs = generateMLIRForNode(expr->getArgs()[1].get());
-        if (!lhs || !rhs) return nullptr;
-        
-        auto matmulExpr = std::make_unique<MatmulExprAST>(
-            std::make_unique<VariableExprAST>("temp_lhs"),
-            std::make_unique<VariableExprAST>("temp_rhs")
-        );
-        return generateMLIRForMatmul(matmulExpr.get());
-    }
-    
-    std::cerr << "Error: Unknown function call: " << callee << "\n";
     return nullptr;
 }
 

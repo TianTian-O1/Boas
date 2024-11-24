@@ -1,0 +1,16 @@
+import tensor
+
+
+def benchmark(size):
+    # 4 x 4
+    A4 = tensor.random(size,size)
+    B4 = tensor.random(size,size)
+    C4 = tensor.matmul(A4, B4)
+    return C4
+
+
+def main():
+
+    size = 4
+    C4 = benchmark(size)
+    print(C4)

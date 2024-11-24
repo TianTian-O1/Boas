@@ -159,7 +159,7 @@ std::unique_ptr<ExprAST> Parser::parseIdentifierExpr() {
     std::string name = current_token_.value;
     getNextToken(); // eat identifier
     
-    // 检查是否是赋值语句
+    // Check if it's an assignment
     if (current_token_.kind == tok_equal) {
         getNextToken(); // eat '='
         auto value = parseExpression();
@@ -167,6 +167,18 @@ std::unique_ptr<ExprAST> Parser::parseIdentifierExpr() {
         return std::make_unique<AssignmentExprAST>(name, std::move(value));
     }
     
+    // Check if it's a function call
+    if (current_token_.kind == tok_left_paren) {
+        getNextToken(); // eat '('
+        std::vector<std::unique_ptr<ExprAST>> args = parseCallArgs();
+        if (current_token_.kind != tok_right_paren) {
+            return LogError("Expected ')' in function call");
+        }
+        getNextToken(); // eat ')'
+        return std::make_unique<CallExprAST>(name, std::move(args));
+    }
+    
+    // If it's not an assignment or function call, it's a variable reference
     return std::make_unique<VariableExprAST>(name);
 }
 
@@ -369,7 +381,8 @@ std::unique_ptr<ExprAST> Parser::parseTensorRandom() {
     }
     getNextToken(); // eat '('
     
-    auto rows = parseNumber();
+    // Parse dimensions - now can be either number or variable
+    auto rows = parsePrimary();  // Changed from parseNumber()
     if (!rows) return nullptr;
     
     if (current_token_.kind != tok_comma) {
@@ -377,7 +390,7 @@ std::unique_ptr<ExprAST> Parser::parseTensorRandom() {
     }
     getNextToken(); // eat ','
     
-    auto cols = parseNumber();
+    auto cols = parsePrimary();  // Changed from parseNumber()
     if (!cols) return nullptr;
     
     if (current_token_.kind != tok_right_paren) {
@@ -462,8 +475,26 @@ std::unique_ptr<FunctionAST> Parser::parseFunction() {
     }
     getNextToken(); // eat '('
     
+    // Parse function arguments
+    std::vector<std::string> args;
     if (current_token_.kind != tok_right_paren) {
-        return nullptr;
+        while (true) {
+            if (current_token_.kind != tok_identifier) {
+                return nullptr;
+            }
+            
+            args.push_back(current_token_.value);
+            getNextToken(); // eat argument name
+            
+            if (current_token_.kind == tok_right_paren) {
+                break;
+            }
+            
+            if (current_token_.kind != tok_comma) {
+                return nullptr;
+            }
+            getNextToken(); // eat comma
+        }
     }
     getNextToken(); // eat ')'
     
@@ -490,6 +521,9 @@ std::unique_ptr<FunctionAST> Parser::parseFunction() {
             stmt = parseAssignment();
         } else if (current_token_.kind == tok_print) {
             stmt = parsePrintExpr();
+        } else if (current_token_.kind == tok_return) {
+            getNextToken(); // eat 'return'
+            stmt = parseExpression();
         }
         
         if (!stmt) break;
@@ -501,7 +535,7 @@ std::unique_ptr<FunctionAST> Parser::parseFunction() {
         }
     }
     
-    return std::make_unique<FunctionAST>(func_name, std::vector<std::string>(), std::move(body));
+    return std::make_unique<FunctionAST>(func_name, std::move(args), std::move(body));
 }
 
 std::unique_ptr<AssignmentExprAST> Parser::parseAssignment() {

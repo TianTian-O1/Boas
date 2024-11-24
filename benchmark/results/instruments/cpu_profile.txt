@@ -1,97 +1,94 @@
-Analysis of sampling matrix-compiler (pid 52838) every 1 millisecond
-Process:         matrix-compiler [52838]
+Analysis of sampling matrix-compiler (pid 9420) every 1 millisecond
+Process:         matrix-compiler [9420]
 Path:            /Users/USER/*/matrix-compiler
-Load Address:    0x10d99d000
+Load Address:    0x10ba56000
 Identifier:      matrix-compiler
 Version:         0
 Code Type:       X86-64
 Platform:        macOS
-Parent Process:  bash [52609]
+Parent Process:  bash [8110]
 
-Date/Time:       2024-11-23 14:22:43.276 +0800
-Launch Time:     2024-11-23 14:22:42.163 +0800
+Date/Time:       2024-11-24 12:31:17.949 +0800
+Launch Time:     2024-11-24 12:31:16.853 +0800
 OS Version:      macOS 12.7.6 (21H1320)
 Report Version:  7
 Analysis Tool:   /usr/bin/sample
 ----
 
 Call graph:
-    594 Thread_90481790   DispatchQueue_1: com.apple.main-thread  (serial)
-    + 594 start  (in dyld) + 462  [0x11143752e]
-    +   593 main  (in matrix-compiler) + 979  [0x10d9a3f23]
-    +   ! 593 compileMLIR(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)  (in matrix-compiler) + 7738  [0x10d9a31ca]
-    +   !   593 system  (in libsystem_c.dylib) + 440  [0x7ff81e6eca56]
-    +   !     593 __wait4_nocancel  (in libsystem_kernel.dylib) + 10  [0x7ff81e773dde]
-    +   1 main  (in matrix-compiler) + 1468  [0x10d9a410c]
-    +     1 matrix::MLIRGen::~MLIRGen()  (in matrix-compiler) + 21  [0x10d9a45a5]
-    +       1 matrix::MLIRGen::~MLIRGen()  (in matrix-compiler) + 51  [0x10d9a5393]
-    +         1 std::__1::unique_ptr<mlir::MLIRContext, std::__1::default_delete<mlir::MLIRContext> >::~unique_ptr()  (in matrix-compiler) + 21  [0x10d9a53f5]
-    +           1 std::__1::unique_ptr<mlir::MLIRContext, std::__1::default_delete<mlir::MLIRContext> >::~unique_ptr()  (in matrix-compiler) + 25  [0x10d9a59d9]
-    +             1 std::__1::unique_ptr<mlir::MLIRContext, std::__1::default_delete<mlir::MLIRContext> >::reset(mlir::MLIRContext*)  (in matrix-compiler) + 92  [0x10d9a5a3c]
-    +               1 std::__1::default_delete<mlir::MLIRContext>::operator()(mlir::MLIRContext*) const  (in matrix-compiler) + 43  [0x10d9a5abb]
-    +                 1 mlir::MLIRContext::~MLIRContext()  (in matrix-compiler) + 29  [0x10e36f73d]
-    +                   1 mlir::MLIRContextImpl::~MLIRContextImpl()  (in matrix-compiler) + 1444  [0x10e375ba4]
-    +                     1 free_tiny  (in libsystem_malloc.dylib) + 446  [0x7ff81e5c61c4]
-    +                       1 tiny_free_no_lock  (in libsystem_malloc.dylib) + 910  [0x7ff81e5c66ab]
-    +                         1 tiny_free_list_add_ptr  (in libsystem_malloc.dylib) + 214  [0x7ff81e5c6d29]
-    594 Thread_90481792: llvm-worker-0
-    + 594 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
-    +   594 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
-    +     594 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x10e482787]
-    +       594 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x10e480a46]
-    +         594 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
-    +           594 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
-    +             594 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
-    594 Thread_90481793: llvm-worker-1
-    + 594 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
-    +   594 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
-    +     594 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x10e482787]
-    +       594 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x10e480a46]
-    +         594 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
-    +           594 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
-    +             594 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
-    594 Thread_90481794: llvm-worker-2
-    + 594 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
-    +   594 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
-    +     594 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x10e482787]
-    +       594 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x10e480a46]
-    +         594 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
-    +           594 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
-    +             594 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
-    594 Thread_90481795: llvm-worker-3
-    + 594 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
-    +   594 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
-    +     594 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x10e482787]
-    +       594 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x10e480a46]
-    +         594 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
-    +           594 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
-    +             594 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
-    594 Thread_90481796: llvm-worker-4
-      594 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
-        594 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
-          594 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x10e482787]
-            594 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x10e480a46]
-              594 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
-                594 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
-                  594 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
+    324 Thread_97016318   DispatchQueue_1: com.apple.main-thread  (serial)
+    + 324 start  (in dyld) + 462  [0x11496b52e]
+    +   323 main  (in matrix-compiler) + 979  [0x10ba5b903]
+    +   ! 323 compileMLIR(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)  (in matrix-compiler) + 7738  [0x10ba5abaa]
+    +   !   323 system  (in libsystem_c.dylib) + 440  [0x7ff81e6eca56]
+    +   !     323 __wait4_nocancel  (in libsystem_kernel.dylib) + 10  [0x7ff81e773dde]
+    +   1 main  (in matrix-compiler) + 1468  [0x10ba5baec]
+    +     1 matrix::MLIRGen::~MLIRGen()  (in matrix-compiler) + 21  [0x10ba5bf85]
+    +       1 matrix::MLIRGen::~MLIRGen()  (in matrix-compiler) + 51  [0x10ba5cd73]
+    +         1 std::__1::unique_ptr<mlir::MLIRContext, std::__1::default_delete<mlir::MLIRContext> >::~unique_ptr()  (in matrix-compiler) + 21  [0x10ba5cdd5]
+    +           1 std::__1::unique_ptr<mlir::MLIRContext, std::__1::default_delete<mlir::MLIRContext> >::~unique_ptr()  (in matrix-compiler) + 25  [0x10ba5d3b9]
+    +             1 std::__1::unique_ptr<mlir::MLIRContext, std::__1::default_delete<mlir::MLIRContext> >::reset(mlir::MLIRContext*)  (in matrix-compiler) + 92  [0x10ba5d41c]
+    +               1 std::__1::default_delete<mlir::MLIRContext>::operator()(mlir::MLIRContext*) const  (in matrix-compiler) + 43  [0x10ba5d49b]
+    +                 1 mlir::MLIRContext::~MLIRContext()  (in matrix-compiler) + 29  [0x10c43011d]
+    +                   1 mlir::MLIRContextImpl::~MLIRContextImpl()  (in matrix-compiler) + 1479  [0x10c4365a7]
+    324 Thread_97016322: llvm-worker-0
+    + 324 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
+    +   324 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
+    +     324 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x10c543167]
+    +       324 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x10c541426]
+    +         324 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
+    +           324 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
+    +             324 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
+    324 Thread_97016323: llvm-worker-1
+    + 324 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
+    +   324 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
+    +     324 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x10c543167]
+    +       324 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x10c541426]
+    +         324 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
+    +           324 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
+    +             324 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
+    324 Thread_97016324: llvm-worker-2
+    + 324 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
+    +   324 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
+    +     324 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x10c543167]
+    +       324 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x10c541426]
+    +         324 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
+    +           324 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
+    +             324 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
+    324 Thread_97016325: llvm-worker-3
+    + 324 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
+    +   324 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
+    +     324 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x10c543167]
+    +       324 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x10c541426]
+    +         324 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
+    +           324 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
+    +             324 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
+    324 Thread_97016326: llvm-worker-4
+      324 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
+        324 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
+          324 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x10c543167]
+            324 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x10c541426]
+              324 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
+                324 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
+                  324 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
 
 Total number in stack (recursive counted multiple, when >=5):
         5       __psynch_cvwait  (in libsystem_kernel.dylib) + 0  [0x7ff81e76d3a0]
         5       _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
         5       _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
-        5       llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x10e480a46]
+        5       llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x10c541426]
         5       std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
         5       thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
-        5       void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x10e482787]
+        5       void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x10c543167]
 
 Sort by top of stack, same collapsed (when >= 5):
-        __psynch_cvwait  (in libsystem_kernel.dylib)        2970
-        __wait4_nocancel  (in libsystem_kernel.dylib)        593
+        __psynch_cvwait  (in libsystem_kernel.dylib)        1620
+        __wait4_nocancel  (in libsystem_kernel.dylib)        323
 
 Binary Images:
-       0x10d99d000 -        0x10e550ff3 +matrix-compiler (0) <E009607D-C65C-3AF6-92E4-FA0EE0843AE1> /Users/*/matrix-compiler
-       0x10f123000 -        0x10f1e6fd7 +libzstd.1.5.6.dylib (0) <812ACB6A-797F-37D4-95F9-F6C5542DBC6A> /usr/local/Cellar/zstd/1.5.6/lib/libzstd.1.5.6.dylib
-       0x111432000 -        0x11149b5a7  dyld (960) <EEA022BB-A6AB-3CD1-8AC1-54CE8CFD3333> /usr/lib/dyld
+       0x10ba56000 -        0x10c611ffb +matrix-compiler (0) <3574B3FA-0F10-3009-8645-66F6DF76F515> /Users/*/matrix-compiler
+       0x10d1f4000 -        0x10d2b7fd7 +libzstd.1.5.6.dylib (0) <812ACB6A-797F-37D4-95F9-F6C5542DBC6A> /usr/local/Cellar/zstd/1.5.6/lib/libzstd.1.5.6.dylib
+       0x114966000 -        0x1149cf5a7  dyld (960) <EEA022BB-A6AB-3CD1-8AC1-54CE8CFD3333> /usr/lib/dyld
     0x7ff81e4d7000 -     0x7ff81e4d8ff2  libsystem_blocks.dylib (79.1) <F44F0D7C-74FD-37FD-8267-8D3AEC7E7FB8> /usr/lib/system/libsystem_blocks.dylib
     0x7ff81e4d9000 -     0x7ff81e514fff  libxpc.dylib (2236.140.2.705.3) <488BD58D-65C0-3341-B0CF-BE85D2257A91> /usr/lib/system/libxpc.dylib
     0x7ff81e515000 -     0x7ff81e52dffe  libsystem_trace.dylib (1375.140.2) <707E7930-370D-393F-AEB0-949E48A6E19C> /usr/lib/system/libsystem_trace.dylib

@@ -92,35 +92,73 @@ mlir::Value MLIRGen::generateMLIRForTensorCreate(const TensorCreateExprAST* expr
     return result;
 }
 
-
 mlir::Value MLIRGen::generateMLIRForTensorRandom(const TensorRandomExprAST* expr) {
-    std::cerr << "[DEBUG] Generating random tensor using optimized approach\n";
+    std::cerr << "[DEBUG] Generating random tensor with dynamic dimensions\n";
     
-    auto* rowsNum = static_cast<const NumberExprAST*>(expr->getRows());
-    auto* colsNum = static_cast<const NumberExprAST*>(expr->getCols());
-    
-    int64_t rows = static_cast<int64_t>(rowsNum->getValue());
-    int64_t cols = static_cast<int64_t>(colsNum->getValue());
-    
-    if (rows <= 0 || cols <= 0 || rows > 2048 || cols > 2048) {
-        std::cerr << "Invalid dimensions for random tensor: " << rows << "x" << cols << "\n";
-        return nullptr;
-    }
-
     auto loc = builder->getUnknownLoc();
     
-    // 1. 分配结果内存
-    std::vector<int64_t> shape = {rows, cols};
-    auto memrefType = mlir::MemRefType::get(shape, builder->getF64Type());
-    auto result = builder->create<mlir::memref::AllocOp>(loc, memrefType);
+    // Get row and column values
+    mlir::Value rowValue, colValue;
     
-    // 2. 创建一维缓冲区用于存储随机数
-    const int64_t vectorSize = 8;  // SIMD向量大小
-    const int64_t batchSize = std::min(int64_t(32), rows * cols);  // 批处理大小
-    auto bufferType = mlir::MemRefType::get({batchSize}, builder->getF64Type());
-    auto randomBuffer = builder->create<mlir::memref::AllocOp>(loc, bufferType);
+    // Handle row dimension
+    if (auto* rowNum = llvm::dyn_cast<NumberExprAST>(expr->getRows())) {
+        rowValue = createConstantIndex(static_cast<int64_t>(rowNum->getValue()));
+        std::cerr << "[DEBUG] Row dimension from number: " << rowNum->getValue() << "\n";
+    } else if (auto* rowVar = llvm::dyn_cast<VariableExprAST>(expr->getRows())) {
+        auto it = symbolTable.find(rowVar->getName());
+        if (it != symbolTable.end()) {
+            rowValue = it->second;
+            std::cerr << "[DEBUG] Row dimension from variable: " << rowVar->getName() << "\n";
+        } else {
+            rowValue = createConstantIndex(4); // Default value
+            symbolTable[rowVar->getName()] = rowValue;
+            std::cerr << "[DEBUG] Created default row dimension: 4\n";
+        }
+    }
     
-    // 3. 声明外部随机数生成函数
+    // Handle column dimension
+    if (auto* colNum = llvm::dyn_cast<NumberExprAST>(expr->getCols())) {
+        colValue = createConstantIndex(static_cast<int64_t>(colNum->getValue()));
+        std::cerr << "[DEBUG] Col dimension from number: " << colNum->getValue() << "\n";
+    } else if (auto* colVar = llvm::dyn_cast<VariableExprAST>(expr->getCols())) {
+        auto it = symbolTable.find(colVar->getName());
+        if (it != symbolTable.end()) {
+            colValue = it->second;
+            std::cerr << "[DEBUG] Col dimension from variable: " << colVar->getName() << "\n";
+        } else {
+            colValue = createConstantIndex(4); // Default value
+            symbolTable[colVar->getName()] = colValue;
+            std::cerr << "[DEBUG] Created default col dimension: 4\n";
+        }
+    }
+
+    // Create memref type with dynamic dimensions
+    auto memrefType = mlir::MemRefType::get(
+        {mlir::ShapedType::kDynamic, mlir::ShapedType::kDynamic},
+        builder->getF64Type()
+    );
+
+    // Allocate matrix with dynamic dimensions
+    auto result = builder->create<mlir::memref::AllocOp>(
+        loc,
+        memrefType,
+        mlir::ValueRange{rowValue, colValue}
+    );
+
+    // Calculate total size and batch size
+    auto totalSize = builder->create<mlir::arith::MulIOp>(loc, rowValue, colValue);
+    auto batchSize = createConstantIndex(32);
+    auto actualBatchSize = builder->create<mlir::arith::MinSIOp>(loc, batchSize, totalSize);
+
+    // Create random buffer with dynamic size
+    auto bufferType = mlir::MemRefType::get({mlir::ShapedType::kDynamic}, builder->getF64Type());
+    auto randomBuffer = builder->create<mlir::memref::AllocOp>(
+        loc,
+        bufferType,
+        mlir::ValueRange{actualBatchSize}
+    );
+
+    // Declare random generation function if not exists
     mlir::func::FuncOp genRandomFunc;
     if (!(genRandomFunc = module.lookupSymbol<mlir::func::FuncOp>("generate_random"))) {
         auto funcType = mlir::FunctionType::get(
@@ -129,99 +167,80 @@ mlir::Value MLIRGen::generateMLIRForTensorRandom(const TensorRandomExprAST* expr
             {builder->getF64Type()}
         );
         genRandomFunc = mlir::func::FuncOp::create(loc, "generate_random", funcType);
-        mlir::SymbolTable symbolTable(module);
-        symbolTable.insert(genRandomFunc);
+        genRandomFunc.setPrivate();
+        mlir::SymbolTable::setSymbolVisibility(genRandomFunc, mlir::SymbolTable::Visibility::Private);
+        module.push_back(genRandomFunc);
     }
 
-    // 4. 先生成一批随机数
-    auto fillLoop = builder->create<mlir::scf::ForOp>(
+    // Fill random buffer with batched random values
+    builder->create<mlir::scf::ForOp>(
         loc,
         createConstantIndex(0),
-        createConstantIndex(batchSize),
+        actualBatchSize,
         createConstantIndex(1),
-        mlir::ValueRange(),
-        [&](mlir::OpBuilder& fillBuilder, 
-            mlir::Location fillLoc, 
-            mlir::Value fillIdx, 
-            mlir::ValueRange fillArgs) {
-              // 生成随机数并存入缓冲区
-              auto randVal = fillBuilder.create<mlir::func::CallOp>(
-                  fillLoc,
-                  genRandomFunc,
-                  mlir::ValueRange{}
-              ).getResult(0);
-              
-              fillBuilder.create<mlir::memref::StoreOp>(
-                  fillLoc,
-                  randVal,
-                  randomBuffer,
-                  mlir::ValueRange{fillIdx}
-              );
-              
-              fillBuilder.create<mlir::scf::YieldOp>(fillLoc);
-        });
-        
-    // 5. 使用嵌套循环填充结果矩阵
-    int64_t totalElements = rows * cols;
-    auto mainLoop = builder->create<mlir::scf::ForOp>(
+        mlir::ValueRange{},
+        [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::Value idx, mlir::ValueRange args) {
+            // Generate random value
+            auto randVal = builder.create<mlir::func::CallOp>(
+                loc,
+                genRandomFunc,
+                mlir::ValueRange{}
+            ).getResult(0);
+            
+            // Store in buffer
+            builder.create<mlir::memref::StoreOp>(
+                loc,
+                randVal,
+                randomBuffer,
+                mlir::ValueRange{idx}
+            );
+            
+            builder.create<mlir::scf::YieldOp>(loc);
+        }
+    );
+
+    // Fill result matrix using random buffer values
+    builder->create<mlir::scf::ForOp>(
         loc,
         createConstantIndex(0),
-        createConstantIndex(totalElements),
+        totalSize,
         createConstantIndex(1),
-        mlir::ValueRange(),
-        [&](mlir::OpBuilder& mainBuilder, 
-            mlir::Location mainLoc, 
-            mlir::Value idx, 
-            mlir::ValueRange mainArgs) {
-              // 计算当前元素的行列索引
-              auto i = mainBuilder.create<mlir::arith::DivUIOp>(
-                  mainLoc,
-                  idx,
-                  createConstantIndex(cols)
-              ).getResult();
-              
-              auto j = mainBuilder.create<mlir::arith::RemUIOp>(
-                  mainLoc,
-                  idx,
-                  createConstantIndex(cols)
-              ).getResult();
-              
-              // 从随机缓冲区读取值
-              auto bufferIdx = mainBuilder.create<mlir::arith::RemUIOp>(
-                  mainLoc,
-                  idx,
-                  createConstantIndex(batchSize)
-              ).getResult();
-              
-              auto randVal = mainBuilder.create<mlir::memref::LoadOp>(
-                  mainLoc,
-                  randomBuffer,
-                  mlir::ValueRange{bufferIdx}
-              ).getResult();
-              
-              // 存储到结果矩阵
-              mainBuilder.create<mlir::memref::StoreOp>(
-                  mainLoc,
-                  randVal,
-                  result,
-                  mlir::ValueRange{i, j}
-              );
-              
-              mainBuilder.create<mlir::scf::YieldOp>(mainLoc);
-        });
-        
-    // 6. 释放临时缓冲区
+        mlir::ValueRange{},
+        [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::Value idx, mlir::ValueRange args) {
+            // Calculate row and column indices
+            auto i = builder.create<mlir::arith::DivUIOp>(loc, idx, colValue);
+            auto j = builder.create<mlir::arith::RemUIOp>(loc, idx, colValue);
+            
+            // Calculate buffer index (cycle through buffer)
+            auto bufferIdx = builder.create<mlir::arith::RemUIOp>(
+                loc,
+                idx,
+                actualBatchSize
+            );
+            
+            // Load random value from buffer
+            auto randVal = builder.create<mlir::memref::LoadOp>(
+                loc,
+                randomBuffer,
+                mlir::ValueRange{bufferIdx}
+            );
+            
+            // Store value in result matrix
+            builder.create<mlir::memref::StoreOp>(
+                loc,
+                randVal,
+                result,
+                mlir::ValueRange{i, j}
+            );
+            
+            builder.create<mlir::scf::YieldOp>(loc);
+        }
+    );
+
+    // Clean up: deallocate random buffer
     builder->create<mlir::memref::DeallocOp>(loc, randomBuffer);
     
-    // 7. 添加优化属性
-    if (auto* defOp = result.getOperation()) {
-        optimizeMemoryAccess(defOp);
-        addVectorizationAttributes(defOp);
-        addParallelizationAttributes(defOp);
-        addTilingAttributes(defOp, 32);
-    }
-
-    std::cerr << "[DEBUG] Optimized tensor generation complete\n";
+    std::cerr << "[DEBUG] Dynamic tensor generation complete\n";
     return result;
 }
 

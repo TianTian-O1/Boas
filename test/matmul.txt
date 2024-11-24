@@ -1,5 +1,6 @@
 import tensor
 
+
 def main():
     # old
     # A = tensor([[1, 0],

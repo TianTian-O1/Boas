@@ -41,6 +41,9 @@ private:
 
     // AST node handlers - defined in MLIRGenNodes.cpp
     mlir::Value generateMLIRForFunction(const FunctionAST* func);
+    void handleFunctionReturn(const FunctionAST* func, mlir::Value result, mlir::Block* entryBlock);
+    void handleDefaultReturn(const FunctionAST* func, mlir::Block* entryBlock);
+    void initializeMemRefToZero(mlir::Value memref, mlir::Value rows, mlir::Value cols);
     mlir::Value generateMLIRForImport(const ImportAST* import);
     mlir::Value generateMLIRForVariable(const VariableExprAST* expr); 
     mlir::Value generateMLIRForAssignment(const AssignmentExprAST* expr);
@@ -58,7 +61,7 @@ private:
     // Matrix operations - defined in MLIRGenMatrix.cpp 
     mlir::Value generateMLIRForMatmul(const MatmulExprAST* expr);
     mlir::Value createOptimizedMatmul(mlir::Value lhs, mlir::Value rhs, mlir::Value result,
-                                     int64_t M, int64_t N, int64_t K);
+                                     mlir::Value M, mlir::Value N, mlir::Value K);
     mlir::Value createBlockedMatmul(mlir::Value lhs, mlir::Value rhs, const MatmulExprAST* expr);
     mlir::Value createVectorizedMatmul(mlir::Value lhs, mlir::Value rhs, const MatmulExprAST* expr);
 
