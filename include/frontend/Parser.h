@@ -13,52 +13,50 @@ public:
     Parser(Lexer &lexer) : lexer_(lexer) {
         getNextToken();
     }
+    
     std::vector<std::unique_ptr<ExprAST>> parse();
 
-private:
-    Lexer &lexer_;
-    Token current_token_;
-
-    // 辅助方法
+protected:
+    // Core parsing infrastructure
     Token getNextToken() { return current_token_ = lexer_.getNextToken(); }
+    std::unique_ptr<ExprAST> LogError(const std::string &str);
     std::string tokenToString(const Token& token) const;
     
-    // 解析方法
+    // Expression parsing methods
     std::unique_ptr<ExprAST> parseTopLevelExpr();
-    std::unique_ptr<ExprAST> parseNumber();
-    std::unique_ptr<ExprAST> parseParenExpr();
-    std::unique_ptr<ExprAST> parseIdentifierExpr();
     std::unique_ptr<ExprAST> parsePrimary();
     std::unique_ptr<ExprAST> parseExpression();
+    std::unique_ptr<ExprAST> parseExpressionRHS(std::unique_ptr<ExprAST> lhs);
+    std::unique_ptr<ExprAST> parseNumber();
+    std::unique_ptr<ExprAST> parseIdentifier();
+    std::unique_ptr<ExprAST> parseIdentifierExpr();
+    std::unique_ptr<ExprAST> parseParenExpr();
     std::unique_ptr<ExprAST> parseArrayLiteral();
+    std::unique_ptr<ExprAST> parseList();
+    
+    // Tensor-related parsing methods
     std::unique_ptr<ExprAST> parseTensorExpr();
-    std::unique_ptr<ExprAST> parseMatmulExpr();
-    std::unique_ptr<ExprAST> parseTensor();
-    std::unique_ptr<ExprAST> parseRandomExpr();
-    std::unique_ptr<AssignmentExprAST> parseAssignment();
     std::unique_ptr<ExprAST> parseTensorCreate();
     std::unique_ptr<ExprAST> parseTensorRandom();
-    std::unique_ptr<ExprAST> parseTimeExpr();
-    std::unique_ptr<ExprAST> parseBinaryExpr(std::unique_ptr<ExprAST> lhs);
+    std::unique_ptr<ExprAST> parseMatmulExpr();
+    std::unique_ptr<ExprAST> parseRandomExpr();
     
-    // 错误处理
-    std::unique_ptr<ExprAST> LogError(const std::string &str);
-
-    // 语句级解析方法
+    // Statement parsing methods
     std::unique_ptr<ImportAST> parseImport();
     std::unique_ptr<ImportAST> parseFromImport();
     std::unique_ptr<FunctionAST> parseFunction();
-
-    // 辅助解析方法
-    std::vector<std::unique_ptr<ExprAST>> parseCallArgs();
-    std::vector<std::string> parseFunctionArgs();
-
-    std::unique_ptr<ExprAST> parseIdentifier();
-    std::unique_ptr<ExprAST> parseExpressionRHS(std::unique_ptr<ExprAST> lhs);
+    std::unique_ptr<AssignmentExprAST> parseAssignment();
     std::unique_ptr<ExprAST> parsePrintExpr();
-
-    // 添加 parseList 声明
-    std::unique_ptr<ExprAST> parseList();
+    std::unique_ptr<ExprAST> parseTimeExpr();
+    
+    // Helper methods
+    std::vector<std::unique_ptr<ExprAST>> parseCallArgs();
+    bool expectToken(TokenKind kind, const std::string& message);
+    bool isEndOfStatement();
+    void skipNewlines();
+    
+    Lexer &lexer_;
+    Token current_token_;
 };
 
 } // namespace matrix
