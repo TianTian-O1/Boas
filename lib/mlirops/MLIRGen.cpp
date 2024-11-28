@@ -192,17 +192,26 @@ mlir::Value MLIRGen::generateMLIRForNode(const ExprAST* node) {
             case ExprAST::TensorRandom:
                 return generateMLIRForTensorRandom(static_cast<const TensorRandomExprAST*>(node));
             case ExprAST::TimeCall:
-                if (auto timeCall = static_cast<const TimeCallExprAST*>(node)) {
-                    if (timeCall->getFuncName() == "now") {
-                        return generateTimeNowMLIR(timeCall);
+                return generateTimeNowMLIR(static_cast<const TimeCallExprAST*>(node));
+            case ExprAST::List:
+                return generateList(static_cast<const ListExprAST*>(node));
+            case ExprAST::ListIndex:
+                return generateListIndex(static_cast<const ListIndexExprAST*>(node));
+            case ExprAST::Return: {
+                auto returnStmt = llvm::cast<ReturnExprAST>(node);
+                mlir::Value returnValue;
+                if (returnStmt->getValue()) {
+                    returnValue = generateMLIRForNode(returnStmt->getValue());
+                    if (!returnValue) {
+                        std::cerr << "Error: Failed to generate return value\n";
+                        return nullptr;
                     }
+                    
+                    // 直接返回值，不生成 ReturnOp
+                    return returnValue;
                 }
-                std::cerr << "Unknown time function\n";
                 return nullptr;
-            case ExprAST::Kind::ListIndex:
-                return generateListIndex(llvm::cast<ListIndexExprAST>(node));
-            case ExprAST::Kind::List:
-                return generateList(llvm::cast<ListExprAST>(node));
+            }
             default:
                 std::cerr << "Error: Unhandled node kind: " << node->getKind() << "\n";
                 return nullptr;

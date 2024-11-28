@@ -41,6 +41,8 @@ std::unique_ptr<ExprAST> Parser::parsePrimary() {
             return parsePrintExpr();
         case tok_time:
             return parseTimeExpr();
+        case tok_return:
+            return parseReturnExpr();
         case tok_eof:
             return nullptr;
         default:
@@ -534,13 +536,19 @@ std::unique_ptr<FunctionAST> Parser::parseFunction() {
         
         // Parse statement
         std::unique_ptr<ExprAST> stmt;
-        if (current_token_.kind == tok_identifier) {
-            stmt = parseAssignment();
-        } else if (current_token_.kind == tok_print) {
-            stmt = parsePrintExpr();
-        } else if (current_token_.kind == tok_return) {
-            getNextToken(); // eat 'return'
-            stmt = parseExpression();
+        switch (current_token_.kind) {
+            case tok_identifier:
+                stmt = parseAssignment();
+                break;
+            case tok_print:
+                stmt = parsePrintExpr();
+                break;
+            case tok_return:
+                stmt = parseReturnExpr();
+                break;
+            default:
+                stmt = parseExpression();
+                break;
         }
         
         if (!stmt) break;
@@ -720,6 +728,23 @@ std::unique_ptr<ExprAST> Parser::parseMatmulExpr() {
     expr->getLHS()->setParent(expr.get());
     expr->getRHS()->setParent(expr.get());
     return expr;
+}
+
+std::unique_ptr<ExprAST> Parser::parseReturnExpr() {
+    getNextToken(); // eat 'return'
+    
+    // 处理空的return语句
+    if (current_token_.kind == tok_newline || current_token_.kind == tok_eof) {
+        return std::make_unique<ReturnExprAST>();
+    }
+    
+    // 解析return后面的表达式
+    auto returnValue = parseExpression();
+    if (!returnValue) {
+        return nullptr;
+    }
+    
+    return std::make_unique<ReturnExprAST>(std::move(returnValue));
 }
 
 } // namespace matrix

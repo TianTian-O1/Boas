@@ -12,7 +12,7 @@ def benchmark(size):
 def main():
 
     sizes = [64,128,256]
-    print(sizes[2])
-    size = 4
+    print(sizes[1])
+    size = 2
     C4 = benchmark(size)
     print(C4)

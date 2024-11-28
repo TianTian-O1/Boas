@@ -32,6 +32,7 @@ private:
     std::unique_ptr<mlir::OpBuilder> builder;
     mlir::ModuleOp module;
     std::map<std::string, mlir::Value> symbolTable;
+    std::vector<std::map<std::string, mlir::Value>> scopeStack;
 
     // Core methods
     void initializeContext();
@@ -113,6 +114,8 @@ private:
 public:
     // 列表操作的公共接口
     mlir::Value generateList(const ListExprAST* list);
+    void pushScope();
+    void popScope();
 };
 
 } // namespace matrix

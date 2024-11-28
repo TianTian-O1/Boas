@@ -55,6 +55,9 @@ protected:
     bool isEndOfStatement();
     void skipNewlines();
     
+    // 添加解析return语句的方法
+    std::unique_ptr<ExprAST> parseReturnExpr();
+    
     Lexer &lexer_;
     Token current_token_;
 };

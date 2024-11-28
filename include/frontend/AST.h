@@ -36,7 +36,8 @@ public:
         TensorRandom,  // Add this new kind
         TimeCall,
         List,
-        ListIndex
+        ListIndex,
+        Return
     };
     
     virtual Kind getKind() const = 0;
@@ -476,6 +477,32 @@ public:
     
     static bool classof(const ExprAST* expr) {
         return expr->getKind() == Kind::ListIndex;
+    }
+};
+
+class ReturnExprAST : public ExprAST {
+    std::unique_ptr<ExprAST> returnValue;
+public:
+    ReturnExprAST(std::unique_ptr<ExprAST> value)
+        : returnValue(std::move(value)) {}
+    
+    ReturnExprAST() : returnValue(nullptr) {}  // 支持无返回值
+    
+    const ExprAST* getValue() const { return returnValue.get(); }
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        std::cout << "return";
+        if (returnValue) {
+            std::cout << " ";
+            returnValue->dump(0);
+        }
+    }
+    
+    Kind getKind() const override { return Kind::Return; }
+    
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::Return;
     }
 };
 

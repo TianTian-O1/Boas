@@ -50,6 +50,11 @@ add_library(matrix-runtime SHARED
     lib/runtime/PrintUtils.cpp
 )
 
+# 为运行时库添加包含目录
+target_include_directories(matrix-runtime PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+
 # 设置运行时库的输出目录
 set_target_properties(matrix-runtime PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
@@ -122,7 +127,7 @@ target_link_libraries(matrix-compiler PRIVATE matrix-lib)
 
 # 添加测试器
 add_executable(test-parser test/test_parser.cpp)
-target_link_libraries(test-parser PRIVATE matrix-lib)
+target_link_libraries(test-parser PRIVATE matrix-lib matrix-runtime)
 
 # Debug 输出 paths
 message(STATUS "MLIR_OPT path: ${MLIR_OPT}")
