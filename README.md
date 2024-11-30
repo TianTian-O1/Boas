@@ -233,11 +233,21 @@ clang --version
 1. 使用 PowerShell 编译:
 ```powershell
 # 编译所有模块
-cmake -G "Visual Studio 17 2022" -A x64 -B build
-cmake --build build --config Release
+# 1. 创建构建目录
+mkdir build
+cd build
+
+# 2. 配置 CMake
+cmake -G "Visual Studio 17 2022" -A x64 ..
+
+# 3. 构建
+cmake --build . --config Release
+
+# 4. 安装 (在 build 目录中执行)
+cmake --install .
 
 # 运行测试用例
-.\build\Release\matrix-compiler.exe --run test\matmul.txt
+.\Release\matrix-compiler.exe --run test\matmul.txt
 ```
 
 2. 运行性能基准测试:
