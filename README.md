@@ -107,14 +107,53 @@ def main():
 ## 环境要求
 
 - LLVM 20.0
-- Mac Intel 处理器
+- Mac Intel 处理器 或 Windows 10/11
 - CMake >= 3.20
 - 支持 C++17 的编译器
 - Python >= 3.8 (用于构建和测试)
+- Visual Studio 2022 (Windows 环境)
 
 ## LLVM 安装说明
 
-### 方法一：从源码编译（推荐）
+### Windows 环境
+
+1. 下载 LLVM 源码:
+```powershell
+git clone https://github.com/llvm/llvm-project.git
+cd llvm-project
+git checkout llvmorg-20.0.0
+```
+
+2. 创建并进入构建目录:
+```powershell
+mkdir build
+cd build
+```
+
+3. 配置 CMake (使用 Visual Studio 2022):
+```powershell
+cmake -G "Visual Studio 17 2022" -A x64 ^
+    -DLLVM_ENABLE_PROJECTS="mlir;clang" ^
+    -DLLVM_BUILD_EXAMPLES=ON ^
+    -DLLVM_TARGETS_TO_BUILD="X86;NVPTX;AMDGPU" ^
+    -DCMAKE_BUILD_TYPE=Release ^
+    -DLLVM_ENABLE_ASSERTIONS=ON ^
+    -DCMAKE_INSTALL_PREFIX="C:/llvm-install" ^
+    ../llvm
+```
+
+4. 编译和安装:
+```powershell
+cmake --build . --config Release
+cmake --install .
+```
+
+5. 设置环境变量:
+- 打开系统属性 -> 高级 -> 环境变量
+- 在系统变量中添加 `LLVM_INSTALL_PATH` = `C:\llvm-install`
+- 在 `Path` 变量中添加 `C:\llvm-install\bin`
+
+### Mac 环境
 
 1. 下载 LLVM 源码:
 ```bash
@@ -153,18 +192,18 @@ echo 'export LLVM_INSTALL_PATH="/Users/mac/llvm-install"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### 方法二：使用包管理器（简单但不推荐）
-
-MacOS (使用 Homebrew):
-```bash
-brew install llvm@20
-```
-
-注意：包管理器安装的版本可能缺少某些必要的组件，建议从源码编译。
-
 ### 验证安装
 
 安装完成后，运行以下命令验证:
+
+Windows PowerShell:
+```powershell
+llc --version
+mlir-opt --version
+clang --version
+```
+
+Mac Terminal:
 ```bash
 llc --version
 mlir-opt --version
@@ -180,7 +219,7 @@ clang --version
    - 增加交换空间
 
 2. **找不到 MLIR 组件**
-   - 确保 CMake 配置时包含�� `mlir` 在 `LLVM_ENABLE_PROJECTS` 中
+   - 确保 CMake 配置时包含 `mlir` 在 `LLVM_ENABLE_PROJECTS` 中
    - 检查安装目录下是否有 `lib/cmake/mlir` 目录
 
 3. **链接错误**
@@ -189,7 +228,28 @@ clang --version
 
 ## 安装与使用说明
 
-### 编译项目
+### Windows 环境
+
+1. 使用 PowerShell 编译:
+```powershell
+# 编译所有模块
+cmake -G "Visual Studio 17 2022" -A x64 -B build
+cmake --build build --config Release
+
+# 运行测试用例
+.\build\Release\matrix-compiler.exe --run test\matmul.txt
+```
+
+2. 运行性能基准测试:
+```powershell
+# 切换到基准测试目录
+cd benchmark\scripts
+
+# 执行基准测试
+.\run_bench.ps1
+```
+
+### Mac 环境
 
 1. 使用脚本编译:
 ```bash
@@ -268,3 +328,16 @@ Boas 采用 MIT 开源协议。详见 [LICENSE](LICENSE) 文件。
 
 3. Q: 如何参与语言开发？
    A: 可以通过 GitHub 提交 Issue 或 PR，也可以加入开发者群参与讨论。
+
+4. Q: Windows 环境下编译失败怎么办？
+   A: 
+   - 确保已安装 Visual Studio 2022 和 Windows SDK
+   - 检查环境变量是否正确设置
+   - 使用管理员权限运行 PowerShell
+   - 确保 LLVM 安装路径不包含中文或特殊字符
+
+5. Q: 在 Windows 下运行时找不到 DLL？
+   A: 
+   - 检查 PATH 环境变量是否包含 LLVM 的 bin 目录
+   - 确保 matrix-runtime.dll 在系统路径中
+   - 尝试将所需 DLL 复制到程序所在目录
