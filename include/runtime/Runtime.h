@@ -3,22 +3,28 @@
 
 #include <cstdint>
 
+#ifdef _WIN32
+#define EXPORT __declspec(dllexport)
+#else
+#define EXPORT __attribute__((visibility("default")))
+#endif
+
 extern "C" {
 
 // Print a floating point number
-void printFloat(double value);
+EXPORT void printFloat(double value);
 
 // Print a string
-void printString(const char* str);
+EXPORT void printString(const char* str);
 
 // Print an integer
-void printInt(int64_t value);
+EXPORT void printInt(int64_t value);
 
 // Get current time in microseconds
-double system_time_usec();
+EXPORT double system_time_usec();
 
 // Generate a random number between 0 and 1
-double generate_random();
+EXPORT double generate_random();
 
 // Print a matrix
 struct MemRefDescriptor {
@@ -29,7 +35,7 @@ struct MemRefDescriptor {
     int64_t strides[2];
 };
 
-void printMemrefF64(int64_t rank, void* ptr);
+EXPORT void printMemrefF64(int64_t rank, void* ptr);
 
 } // extern "C"
 

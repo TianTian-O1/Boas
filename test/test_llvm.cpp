@@ -37,9 +37,9 @@ void printUsage(const char* programName) {
     std::cerr << "Usage: " << programName << " [--run | --build] <input_file> [output_file]" << std::endl;
     std::cerr << "Options:" << std::endl;
     std::cerr << "  --run         : Compile and run the program" << std::endl;
-    std::cerr << "  --build       : Compile to binary only" << std::endl;
+    std::cerr << "  --build       : Compile the program only" << std::endl;
     std::cerr << "  input_file    : Source file to compile" << std::endl;
-    std::cerr << "  output_file   : Output binary file (optional, default: a.out)" << std::endl;
+    std::cerr << "  output_file   : Output file (optional)" << std::endl;
 }
 
 bool compileMLIR(const std::string& mlir, const std::string& workDir, const std::string& outputPath, const std::string& mode) {
@@ -62,135 +62,136 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
     std::string llvmMlirFilePath = tempDir + "/temp.llvm.mlir";
     std::string llFilePath = tempDir + "/temp.ll";
     std::string sFilePath = tempDir + "/temp.s";
+    std::string exeFilePath = tempDir + "/temp.exe";
     
     std::cout << "\n=== Starting MLIR optimization pipeline ===\n";
     
     // Write MLIR to temporary file
     {
+        std::string tempDir = std::filesystem::current_path().string();
+        std::replace(tempDir.begin(), tempDir.end(), '\\', '/');
+        std::string mlirFilePath = tempDir + "/temp.mlir";
+        std::string llvmMlirFilePath = tempDir + "/temp.llvm.mlir";
+        std::string llFilePath = tempDir + "/temp.ll";
+        std::string sFilePath = tempDir + "/temp.s";
+        std::string exeFilePath = tempDir + "/temp.exe";
+        
         std::ofstream outFile(mlirFilePath);
         if (!outFile.is_open()) {
             throw std::runtime_error("Failed to create MLIR file");
         }
         outFile << mlir;
-    }
-    
-    // MLIR optimization pipeline
-    std::string optCmd = "\"" + mlirOptPath + "\"" + 
-        " " + mlirFilePath +
-        " -o " + llvmMlirFilePath +
-        " --pass-pipeline=\"builtin.module("
-        "convert-linalg-to-loops,"
-        "loop-invariant-code-motion,"
-        "func.func(affine-loop-unroll{unroll-factor=4}),"
-        "affine-loop-fusion,"
-        "convert-scf-to-cf,"
-        "convert-vector-to-llvm,"
-        "convert-arith-to-llvm,"
-        "func.func(canonicalize),"
-        "convert-func-to-llvm,"
-        "finalize-memref-to-llvm,"
-        "reconcile-unrealized-casts)\"";
-            
-    std::cout << "\nExecuting MLIR optimization:\n" << optCmd << "\n";
-    if (system(optCmd.c_str()) != 0) {
-        // 如果失败，打印输入文件内容以帮助调试
-        std::cout << "\nInput MLIR content:\n";
-        std::ifstream inFile(mlirFilePath);
-        if (inFile.is_open()) {
-            std::cout << inFile.rdbuf();
-        }
-        throw std::runtime_error("Failed to execute mlir-opt");
-    }
-    
-    // 检查转换后的文件
-    std::cout << "\nChecking converted MLIR:\n";
-    std::ifstream convertedFile(llvmMlirFilePath);
-    if (convertedFile.is_open()) {
-        std::cout << convertedFile.rdbuf() << "\n";
-    }
-    
-    // Convert to LLVM IR
-    std::string translateCmd = "\"" + mlirTranslatePath + "\"" +
-        " --mlir-to-llvmir" +
-        " " + llvmMlirFilePath +
-        " -o " + llFilePath;
-            
-    std::cout << "\nConverting to LLVM IR:\n" << translateCmd << "\n";
-    if (system(translateCmd.c_str()) != 0) {
-        throw std::runtime_error("Failed to execute mlir-translate");
-    }
-    
-    // Compile to assembly with optimization flags
-    std::string llcCmd = "\"" + llcPath + "\"" + 
-        " " + llFilePath +
-        " -O3" +                           // 最高优化级别
-        " -mcpu=native" +                  // 使用本机 CPU 特性
-        " -mattr=+avx2,+fma" +            // 启用 AVX2 和 FMA 指令
-        " -enable-unsafe-fp-math" +        // 启用不安全的浮点数学优化
-        " -fp-contract=fast" +             // 快速浮点数合约
-        " -o " + sFilePath;
-    
-    std::cout << "\nGenerating optimized assembly:\n" << llcCmd << "\n";
-    if (system(llcCmd.c_str()) != 0) {
-        throw std::runtime_error("Failed to execute llc");
-    }
-    
-    // Final compilation with clang
-    std::string clangCmd = "\"" + clangPath + "\"" + 
-        " " + sFilePath + 
-        " -O3" +                           
-        " -march=native" +                 
-        " -ffast-math" +                   
-        " -fno-math-errno" +              
-        " -fno-trapping-math" +           
-        " -ffinite-math-only" +           
-        " -mllvm -force-vector-width=8" +  
-        " -mllvm -force-vector-interleave=4" +  
-        " -L" + llvmInstallPath + "/lib" +
-        " -L" + projectRoot + "/build/lib" +
-        " -Wl,-rpath," + llvmInstallPath + "/lib" +
-        " -Wl,-rpath," + projectRoot + "/build/lib" +
-        " -lmatrix-runtime" +
-        " -lmlir_runner_utils" +
-        " -lmlir_c_runner_utils" +
-        " -lmlir_float16_utils" +
-        " -o " + outputPath;
+        outFile.close();
         
-    std::cout << "\nCompiling to executable with optimizations:\n" << clangCmd << "\n";
-    if (system(clangCmd.c_str()) != 0) {
-        throw std::runtime_error("Failed to execute clang");
+        // Execute MLIR optimization
+        std::cout << "\nExecuting MLIR optimization:\n";
+        std::string mlirOptPath = stripQuotes(MLIR_OPT_PATH);
+        std::replace(mlirOptPath.begin(), mlirOptPath.end(), '\\', '/');
+        
+        std::string pipeline = "builtin.module(convert-linalg-to-loops,loop-invariant-code-motion,"
+                             "func.func(affine-loop-unroll{unroll-factor=4}),"
+                             "affine-loop-fusion,convert-scf-to-cf,convert-vector-to-llvm,"
+                             "convert-arith-to-llvm,func.func(canonicalize),"
+                             "convert-func-to-llvm,finalize-memref-to-llvm,"
+                             "reconcile-unrealized-casts)";
+        
+        std::string cmd = "\"" + mlirOptPath + "\" \"" + mlirFilePath + "\" -o \"" + llvmMlirFilePath + "\"" +
+                         " --pass-pipeline='" + pipeline + "'";
+        std::cout << cmd << std::endl;
+        
+        // Convert backslashes to forward slashes in the command
+        std::replace(cmd.begin(), cmd.end(), '\\', '/');
+        
+        // Use PowerShell to execute the command
+        std::string psCmd = "powershell.exe -NoProfile -NonInteractive -Command \"& { cd '" + tempDir + "'; " + cmd + " }\" 2>&1";
+        std::cout << "\nExecuting command:\n" << psCmd << std::endl;
+        
+        if (system(psCmd.c_str()) != 0) {
+            // 如果失败，打印输入文件内容以帮助调试
+            std::cout << "\nInput MLIR content:\n";
+            std::ifstream inFile(mlirFilePath);
+            if (inFile.is_open()) {
+                std::cout << inFile.rdbuf();
+            }
+            throw std::runtime_error("Failed to execute mlir-opt");
+        }
+        
+        // Check converted MLIR
+        std::cout << "\nChecking converted MLIR:\n";
+        std::ifstream mlirFile(llvmMlirFilePath);
+        if (mlirFile.is_open()) {
+            std::cout << mlirFile.rdbuf();
+        }
+        
+        // Convert to LLVM IR
+        std::cout << "\n\nConverting to LLVM IR:\n";
+        std::string mlirTranslatePath = stripQuotes(MLIR_TRANSLATE_PATH);
+        std::replace(mlirTranslatePath.begin(), mlirTranslatePath.end(), '\\', '/');
+        
+        cmd = "\"" + mlirTranslatePath + "\" --mlir-to-llvmir \"" + llvmMlirFilePath + "\" -o \"" + llFilePath + "\"";
+        std::cout << cmd << std::endl;
+        
+        psCmd = "powershell.exe -NoProfile -NonInteractive -Command \"& { cd '" + tempDir + "'; " + cmd + " }\" 2>&1";
+        if (system(psCmd.c_str()) != 0) {
+            throw std::runtime_error("Failed to execute mlir-translate");
+        }
+        
+        // Generate optimized assembly
+        std::cout << "\nGenerating optimized assembly:\n";
+        std::string llcPath = stripQuotes(LLC_PATH);
+        std::replace(llcPath.begin(), llcPath.end(), '\\', '/');
+        
+        cmd = "\"" + llcPath + "\" \"" + llFilePath + "\" -O3 -o \"" + sFilePath + "\"";
+        std::cout << cmd << std::endl;
+        
+        psCmd = "powershell.exe -NoProfile -NonInteractive -Command \"& { cd '" + tempDir + "'; " + cmd + " }\" 2>&1";
+        if (system(psCmd.c_str()) != 0) {
+            throw std::runtime_error("Failed to execute llc");
+        }
+        
+        // Compile to executable with optimizations
+        std::cout << "\nCompiling to executable with optimizations:\n";
+        cmd = clangPath + " \"" + tempDir + "/temp.s\" -O3 -march=native -ffast-math -fno-math-errno -fno-trapping-math -ffinite-math-only \"-mllvm=-force-vector-width=8\" \"-mllvm=-force-vector-interleave=4\" -L\"" + llvmInstallPath + "/lib\" -L\"" + tempDir + "/lib/Release\" -lmatrix-runtime -o \"" + tempDir + "/Release/temp.exe\"";
+        std::cout << cmd << std::endl;
+        
+        if (system(cmd.c_str()) != 0) {
+            std::cerr << "Error: Failed to compile to executable" << std::endl;
+            return 1;
+        }
+        
+        // 如果是运行模式，设置路径并执行
+        if (mode == "--run") {
+            std::cout << "\nExecuting generated program...\n";
+            
+            // 设置库路径
+#ifdef _WIN32
+            std::string currentPath = getenv("PATH") ? getenv("PATH") : "";
+            std::string newPath = llvmInstallPath + "/lib;" + tempDir + "/lib/Release;" + currentPath;
+            _putenv_s("PATH", newPath.c_str());
+#else
+            std::string currentPath = getenv("DYLD_LIBRARY_PATH") ? getenv("DYLD_LIBRARY_PATH") : "";
+            std::string newPath = llvmInstallPath + "/lib:" + currentPath;
+            setenv("DYLD_LIBRARY_PATH", newPath.c_str(), 1);
+#endif
+            
+            std::string execCmd = "\"" + tempDir + "/Release/temp.exe\"";
+            // 修改：执行程序但不抛出异常
+            int result = system(execCmd.c_str());
+            if (result != 0) {
+                std::cout << "\nNote: Program execution completed with return code " 
+                          << result << ". This is expected for some test cases.\n";
+            }
+        }
     }
-
+    
     // 清理临时文件
     std::remove(mlirFilePath.c_str());
     std::remove(llvmMlirFilePath.c_str());
     std::remove(llFilePath.c_str());
     std::remove(sFilePath.c_str());
+    std::remove(exeFilePath.c_str());
     
     std::cout << "\n=== MLIR compilation pipeline completed successfully ===\n";
-    
-    // 如果是运行模式，设置库路径并执行
-    if (mode == "--run") {
-        std::cout << "\nExecuting generated program...\n";
-        
-        // 设置库路径
-        std::string currentPath = getenv("DYLD_LIBRARY_PATH") ? getenv("DYLD_LIBRARY_PATH") : "";
-        std::string newPath = llvmInstallPath + "/lib:" + currentPath;
-        setenv("DYLD_LIBRARY_PATH", newPath.c_str(), 1);
-        
-        std::string execCmd;
-        if (outputPath.length() > 0 && outputPath[0] == '/') {
-            execCmd = outputPath;
-        } else {
-            execCmd = "./" + outputPath;
-        }
-        // 修改：执行程序但不抛出异常
-        int result = system(execCmd.c_str());
-        if (result != 0) {
-            std::cout << "\nNote: Program execution completed with return code " 
-                      << result << ". This is expected for some test cases.\n";
-        }
-    }
     
     return true;
 }

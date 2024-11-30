@@ -13,7 +13,7 @@ EOF
 
 
 # 创建def_print分支
-git checkout -b main
+git checkout -b win
 
 # 添加所有文件
 git add .
@@ -23,7 +23,7 @@ git commit -m "add list index"
 
 
 # 添加远程仓库
-# git remote add origin https://github.com/TianZhenGG/Boas.git
+git remote add origin https://github.com/TianZhenGG/Boas.git
 
 # 推送到远程
-git push -u origin main
+git push -u origin win

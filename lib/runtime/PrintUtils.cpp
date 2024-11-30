@@ -4,41 +4,35 @@
 #include <random>
 #include <chrono>
 
-#ifdef _WIN32
-#define EXPORT __declspec(dllexport)
-#else
-#define EXPORT __attribute__((visibility("default")))
-#endif
-
 extern "C" {
 
-EXPORT void printFloat(double value) {
+void printFloat(double value) {
     std::cout << std::fixed << std::setprecision(6) << value << std::endl;
 }
 
-EXPORT void printString(const char* str) {
+void printString(const char* str) {
     std::cout << str << std::endl;
 }
 
-EXPORT void printInt(int64_t value) {
+void printInt(int64_t value) {
     std::cout << value << std::endl;
 }
 
-EXPORT double system_time_usec() {
+double system_time_usec() {
     auto now = std::chrono::high_resolution_clock::now();
     auto duration = now.time_since_epoch();
     auto micros = std::chrono::duration_cast<std::chrono::microseconds>(duration);
     return static_cast<double>(micros.count());
 }
 
-EXPORT double generate_random() {
+double generate_random() {
     static std::random_device rd;
     static std::mt19937 gen(rd());
     static std::uniform_real_distribution<double> dis(0.0, 1.0);
     return dis(gen);
 }
 
-EXPORT void printMemrefF64(int64_t rank, void* ptr) {
+void printMemrefF64(int64_t rank, void* ptr) {
     if (!ptr) {
         std::cout << "null" << std::endl;
         return;

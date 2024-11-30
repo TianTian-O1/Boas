@@ -5,7 +5,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 添加优化选项
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+endif()
 
 # 设置包含目录
 include_directories(${PROJECT_SOURCE_DIR}/include)
@@ -23,4 +27,6 @@ endif()
 # 添加文件系统库支持
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     link_libraries(stdc++fs)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # MSVC 17及以上版本已经内置了文件系统支持，不需要额外链接
 endif()

@@ -1,167 +1,100 @@
-#include <chrono>
-#include <vector>
 #include <iostream>
-#include <iomanip>
-#include <fstream>
-#include <cstdlib>
 #include <string>
-#include <regex>
-#include <map>
-#include <array>
+#include <chrono>
+#include <thread>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <psapi.h>
+#else
+#include <cstdio>
 #include <memory>
-#include <sstream>
+#endif
 
-struct BoasPerformanceMetrics {
-    double compile_time_ms = 0.0;
-    double mlir_gen_time_ms = 0.0;
-    double llvm_ir_time_ms = 0.0;
-    double execution_time_ms = 0.0;
-    double memory_usage_mb = 0.0;
-    double total_time_ms = 0.0;
-    double peak_memory_kb = 0.0;
-    double ipc = 0.0;
-    std::map<std::string, double> phase_times;
-};
-
-class BoasPerformanceAnalyzer {
-private:
-    std::string boas_compiler_path;
-    std::string output_dir;
-    std::vector<int> matrix_sizes = {64, 128, 256, 512, 1024};
-
-    std::string executeCommand(const std::string& cmd) {
-        std::array<char, 128> buffer;
-        std::string result;
-        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
-        
-        if (!pipe) {
-            throw std::runtime_error("popen() failed!");
-        }
-        
-        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-            result += buffer.data();
-        }
-        
-        return result;
-    }
-
-    BoasPerformanceMetrics parseCompilerOutput(const std::string& output) {
-        BoasPerformanceMetrics metrics;
-        std::istringstream iss(output);
-        std::string line;
-        
-        std::regex time_pattern(R"(Time taken: (\d+\.?\d*) ms)");
-        std::regex phase_pattern(R"((\w+) phase took: (\d+\.?\d*) ms)");
-        std::regex memory_pattern(R"(Memory usage: (\d+\.?\d*) MB)");
-        
-        while (std::getline(iss, line)) {
-            std::smatch matches;
-            if (std::regex_search(line, matches, time_pattern)) {
-                metrics.execution_time_ms = std::stod(matches[1]);
-            }
-            else if (std::regex_search(line, matches, phase_pattern)) {
-                std::string phase = matches[1];
-                double time = std::stod(matches[2]);
-                metrics.phase_times[phase] = time;
-                
-                if (phase == "MLIR") {
-                    metrics.mlir_gen_time_ms = time;
-                }
-                else if (phase == "LLVM") {
-                    metrics.llvm_ir_time_ms = time;
-                }
-            }
-            else if (std::regex_search(line, matches, memory_pattern)) {
-                metrics.memory_usage_mb = std::stod(matches[1]);
-            }
-        }
-        
-        metrics.compile_time_ms = metrics.mlir_gen_time_ms + metrics.llvm_ir_time_ms;
-        return metrics;
-    }
-
-    std::string generateTestProgram(int size) {
-        std::ostringstream program;
-        program << "def main():\n"
-                << "    A = tensor.random(" << size << ", " << size << ")\n"
-                << "    B = tensor.random(" << size << ", " << size << ")\n"
-                << "    print(\"Start\")\n"
-                << "    C = tensor.matmul(A, B)\n"
-                << "    print(\"End\")\n";
-        return program.str();
-    }
-
-    void analyzeBottlenecks(int size, const BoasPerformanceMetrics& metrics, 
-                           std::ofstream& report) {
-        // 定义预期的峰值性能（根据硬件规格调整）
-        const double expected_peak_gflops = 100.0; // 示例值，需要根据实际CPU调整
-        
-        report << "Performance Analysis:\n";
-        
-        // 编译时间分析
-        double compile_ratio = metrics.compile_time_ms / metrics.total_time_ms;
-        report << "Compilation overhead: " << (compile_ratio * 100) << "%\n";
-        
-        // 内存使用分析
-        report << "Memory efficiency:\n";
-        report << "- Peak memory: " << metrics.peak_memory_kb << " KB\n";
-        report << "- Memory per matrix element: " 
-               << (double)metrics.peak_memory_kb / (size * size) << " KB\n";
-        
-        // 计算效率分析
-        double achieved_gflops = (2.0 * size * size * size) / 
-                                (metrics.execution_time_ms * 1e6);
-        report << "Computational efficiency:\n";
-        report << "- GFLOPS: " << achieved_gflops << "\n";
-        report << "- Instructions per cycle: " << metrics.ipc << "\n";
-        
-        // 提供优化建议
-        if (compile_ratio > 0.3 || metrics.ipc < 1.0 || 
-            achieved_gflops < expected_peak_gflops * 0.1) {
-            report << "\nOptimization suggestions:\n";
-            // ... 根据具体指标提供优化建议
-        }
-    }
-
+class PerformanceAnalyzer {
 public:
-    BoasPerformanceAnalyzer(const std::string& compiler_path, const std::string& out_dir) 
-        : boas_compiler_path(compiler_path), output_dir(out_dir) {}
-
-    void runAnalysis() {
-        std::map<int, BoasPerformanceMetrics> all_metrics;
-        std::ofstream report(output_dir + "/boas_performance_report.txt");
-        
-        for (int size : matrix_sizes) {
-            std::string program = generateTestProgram(size);
-            std::string temp_file = output_dir + "/temp_" + std::to_string(size) + ".bs";
-            
-            std::ofstream prog_file(temp_file);
-            prog_file << program;
-            prog_file.close();
-            
-            std::string cmd = boas_compiler_path + " --dump-timing --dump-mlir --dump-llvm " 
-                             + temp_file + " 2>&1";
-            
-            try {
-                std::string output = executeCommand(cmd);
-                all_metrics[size] = parseCompilerOutput(output);
-                analyzeBottlenecks(size, all_metrics[size], report);
-            } catch (const std::exception& e) {
-                std::cerr << "Error analyzing size " << size << ": " << e.what() << std::endl;
+    static double getMemoryUsage() {
+#ifdef _WIN32
+        PROCESS_MEMORY_COUNTERS_EX pmc;
+        GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc));
+        return static_cast<double>(pmc.WorkingSetSize) / 1024.0; // 转换为KB
+#else
+        FILE* file = fopen("/proc/self/status", "r");
+        if (file) {
+            char line[128];
+            while (fgets(line, 128, file) != NULL) {
+                if (strncmp(line, "VmRSS:", 6) == 0) {
+                    long rss;
+                    sscanf(line, "VmRSS: %ld", &rss);
+                    fclose(file);
+                    return static_cast<double>(rss);
+                }
             }
-            
-            std::remove(temp_file.c_str());
+            fclose(file);
         }
+        return 0.0;
+#endif
+    }
+
+    static double getCPUUsage() {
+#ifdef _WIN32
+        static ULARGE_INTEGER lastCPU, lastSysCPU, lastUserCPU;
+        static int numProcessors;
+        static bool init = false;
+
+        if (!init) {
+            SYSTEM_INFO sysInfo;
+            GetSystemInfo(&sysInfo);
+            numProcessors = sysInfo.dwNumberOfProcessors;
+
+            GetSystemTimeAsFileTime((FILETIME*)&lastCPU);
+            GetProcessTimes(GetCurrentProcess(), (FILETIME*)&lastCPU,
+                          (FILETIME*)&lastCPU, (FILETIME*)&lastSysCPU,
+                          (FILETIME*)&lastUserCPU);
+            init = true;
+            return 0.0;
+        }
+
+        FILETIME createTime, exitTime, kernelTime, userTime;
+        ULARGE_INTEGER now, sys, user;
+
+        GetSystemTimeAsFileTime((FILETIME*)&now);
+        GetProcessTimes(GetCurrentProcess(), &createTime, &exitTime,
+                       &kernelTime, &userTime);
+
+        sys.LowPart = kernelTime.dwLowDateTime;
+        sys.HighPart = kernelTime.dwHighDateTime;
+        user.LowPart = userTime.dwLowDateTime;
+        user.HighPart = userTime.dwHighDateTime;
+
+        double percent = (sys.QuadPart - lastSysCPU.QuadPart) +
+                        (user.QuadPart - lastUserCPU.QuadPart);
+        percent /= (now.QuadPart - lastCPU.QuadPart);
+        percent /= numProcessors;
+        percent *= 100;
+
+        lastCPU = now;
+        lastUserCPU = user;
+        lastSysCPU = sys;
+
+        return percent;
+#else
+        return 0.0; // 在非Windows系统上返回0
+#endif
     }
 };
 
-int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        std::cerr << "Usage: " << argv[0] << " <boas_compiler_path> <output_dir>\n";
-        return 1;
+int main() {
+    // 每秒记录一次性能数据
+    for (int i = 0; i < 10; ++i) {
+        double memory = PerformanceAnalyzer::getMemoryUsage();
+        double cpu = PerformanceAnalyzer::getCPUUsage();
+        
+        std::cout << "Memory Usage: " << memory << " KB, CPU Usage: " 
+                  << cpu << "%" << std::endl;
+        
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
-
-    BoasPerformanceAnalyzer analyzer(argv[1], argv[2]);
-    analyzer.runAnalysis();
+    
     return 0;
 } 

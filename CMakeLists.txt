@@ -6,7 +6,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 设置 LLVM 安装路径
 if(NOT DEFINED LLVM_INSTALL_PREFIX)
-    set(LLVM_INSTALL_PREFIX "/Users/mac/llvm-install" CACHE PATH "LLVM installation directory")
+    if(WIN32)
+        set(LLVM_INSTALL_PREFIX "E:/llvm-project/build/Release" CACHE PATH "LLVM installation directory")
+    else()
+        set(LLVM_INSTALL_PREFIX "/Users/mac/llvm-install" CACHE PATH "LLVM installation directory")
+    endif()
 endif()
 
 message(STATUS "LLVM installation prefix: ${LLVM_INSTALL_PREFIX}")
@@ -18,10 +22,17 @@ list(APPEND CMAKE_PREFIX_PATH "${LLVM_INSTALL_PREFIX}/lib/cmake/mlir")
 find_package(MLIR REQUIRED CONFIG)
 
 # 设置工具路径
-set(MLIR_OPT "${LLVM_INSTALL_PREFIX}/bin/mlir-opt")
-set(MLIR_TRANSLATE "${LLVM_INSTALL_PREFIX}/bin/mlir-translate")
-set(LLC "${LLVM_INSTALL_PREFIX}/bin/llc")
-set(CLANG "/usr/bin/clang")
+if(WIN32)
+    set(MLIR_OPT "${LLVM_INSTALL_PREFIX}/bin/mlir-opt.exe")
+    set(MLIR_TRANSLATE "${LLVM_INSTALL_PREFIX}/bin/mlir-translate.exe")
+    set(LLC "${LLVM_INSTALL_PREFIX}/bin/llc.exe")
+    set(CLANG "${LLVM_INSTALL_PREFIX}/bin/clang.exe")
+else()
+    set(MLIR_OPT "${LLVM_INSTALL_PREFIX}/bin/mlir-opt")
+    set(MLIR_TRANSLATE "${LLVM_INSTALL_PREFIX}/bin/mlir-translate")
+    set(LLC "${LLVM_INSTALL_PREFIX}/bin/llc")
+    set(CLANG "/usr/bin/clang")
+endif()
 
 # 添加包含目录
 include_directories(${LLVM_INCLUDE_DIRS})
@@ -31,7 +42,7 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 # 验证工具是否存在
 foreach(tool ${MLIR_OPT} ${MLIR_TRANSLATE} ${LLC})
     if(NOT EXISTS ${tool})
-        message(FATAL_ERROR "Required tool not found: ${tool}")
+        message(WARNING "Tool not found: ${tool}")
     endif()
 endforeach()
 
@@ -60,8 +71,9 @@ set_target_properties(matrix-runtime PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    PREFIX ""
+    IMPORT_PREFIX ""
 )
-
 
 # 添加源文件
 add_library(matrix-lib

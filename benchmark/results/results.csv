@@ -1,30 +1,11 @@
-name,language,size,time_ms
-matrix_multiplication,C++,64,0.348
-matrix_multiplication,C++,128,0.859
-matrix_multiplication,C++,256,2.976
-matrix_multiplication,C++,512,13.425
-matrix_multiplication,C++,1024,70.453
-matrix_multiplication,Pure Python (Opt),64,43.8380241394043
-matrix_multiplication,Pure Python (Opt),128,334.5599174499512
-matrix_multiplication,Pure Python (Opt),256,2647.2368240356445
-matrix_multiplication,Pure Python (Opt),512,20642.881155014038
-matrix_multiplication,NumPy,64,0.2071857452392578
-matrix_multiplication,NumPy,128,0.4761219024658203
-matrix_multiplication,NumPy,256,0.4470348358154297
-matrix_multiplication,NumPy,512,3.529071807861328
-matrix_multiplication,NumPy,1024,14.335393905639648
-matrix_multiplication,Go,64,0.30
-matrix_multiplication,Go,128,3.00
-matrix_multiplication,Go,256,12.08
-matrix_multiplication,Go,512,109.81
-matrix_multiplication,Go,1024,1425.49
-matrix_multiplication,Java,64,16.21
-matrix_multiplication,Java,128,2.90
-matrix_multiplication,Java,256,4.74
-matrix_multiplication,Java,512,26.90
-matrix_multiplication,Java,1024,215.68
-matrix_multiplication,Boas,64,0.194
-matrix_multiplication,Boas,128,0.994
-matrix_multiplication,Boas,256,8.236
-matrix_multiplication,Boas,512,67.372
-matrix_multiplication,Boas,1024,506.290
+﻿name,language,size,time_ms
+matrix_multiplication,C++,64,0
+matrix_multiplication,C++,128,1
+matrix_multiplication,C++,256,30
+matrix_multiplication,C++,512,750
+matrix_multiplication,C++,1024,6177
+matrix_multiplication,Python,64,0.0
+matrix_multiplication,Python,128,0.0
+matrix_multiplication,Python,256,0.0
+matrix_multiplication,Python,512,1.0132789611816406
+matrix_multiplication,Python,1024,4.9953460693359375
