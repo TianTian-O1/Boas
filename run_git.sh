@@ -19,7 +19,7 @@ git checkout -b linux
 git add .
 
 # 创建初始提交
-git commit -m "matmul optimizations"
+git commit -m "python ast"
 
 
 # 添加远程仓库
