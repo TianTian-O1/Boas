@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 设置 LLVM 安装路径
 if(NOT DEFINED LLVM_INSTALL_PREFIX)
-    set(LLVM_INSTALL_PREFIX "/Users/mac/llvm-install" CACHE PATH "LLVM installation directory")
+    set(LLVM_INSTALL_PREFIX "/user/local" CACHE PATH "LLVM installation directory")
 endif()
 
 message(STATUS "LLVM installation prefix: ${LLVM_INSTALL_PREFIX}")
@@ -122,6 +122,25 @@ target_link_libraries(matrix-compiler PRIVATE matrix-lib)
 # 添加测试器
 add_executable(test-parser test/test_parser.cpp)
 target_link_libraries(test-parser PRIVATE matrix-lib)
+
+# 添加Python支持
+find_package(Python3 COMPONENTS Development REQUIRED)
+include_directories(${Python3_INCLUDE_DIRS})
+
+# 在现有的target_link_libraries中添加Python库
+target_link_libraries(matrix-compiler
+    PRIVATE
+    ${Python3_LIBRARIES}
+    # ... 其他库
+)
+
+# 添加Python AST测试
+add_executable(test-python-ast test/test_python_ast.cpp lib/frontend/PythonAST.cpp)
+target_link_libraries(test-python-ast 
+    PRIVATE 
+    ${Python3_LIBRARIES}
+    matrix-lib
+)
 
 # Debug 输出 paths
 message(STATUS "MLIR_OPT path: ${MLIR_OPT}")

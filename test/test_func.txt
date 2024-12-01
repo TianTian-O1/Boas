@@ -1,0 +1,23 @@
+import tensor
+
+def benchmark(size):
+    
+    # 4 x 4
+    A4 = tensor.random(size, size)
+    B4 = tensor.random(size, size)
+    C4 = tensor.matmul(A4, B4)
+    return C4
+
+def main():
+    sizes = [2,3,4]
+    for size in sizes:
+        C4 = benchmark(size)
+        print(C4)
+    print("successfully")
+
+    # 使用列表初始化
+    A = tensor.create(2, 2, [1,2,2,3])
+    B = tensor.create(2, 2, [5,1,7,8])
+    C = tensor.matmul(A, B)
+    
+    print(C)
