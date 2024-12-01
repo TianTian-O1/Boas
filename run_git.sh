@@ -13,7 +13,7 @@ EOF
 
 
 # 创建def_print分支
-git checkout -b linux
+git checkout  linux
 
 # 添加所有文件
 git add .
