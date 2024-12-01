@@ -23,7 +23,7 @@ git commit -m "matmul optimizations"
 
 
 # 添加远程仓库
-# git remote add origin https://github.com/TianZhenGG/Boas.git
+git remote add origin https://github.com/TianZhenGG/Boas.git
 
 # 推送到远程
 git push -u origin linux
