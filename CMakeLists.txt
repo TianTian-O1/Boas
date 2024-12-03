@@ -62,6 +62,10 @@ set_target_properties(matrix-runtime PROPERTIES
 add_library(matrix-lib
     lib/frontend/Lexer.cpp
     lib/frontend/Parser.cpp
+    lib/frontend/PythonASTParser.cpp
+    lib/frontend/python_parser/PythonASTBuilder.cpp
+    lib/frontend/python_parser/PythonASTVisitor.cpp
+    lib/frontend/python_parser/PythonASTNodes.cpp
     lib/mlirops/MLIRGen.cpp
     lib/mlirops/MLIRGenMatrix.cpp
     lib/mlirops/MLIRGenNodes.cpp
@@ -109,7 +113,7 @@ target_compile_definitions(matrix-lib PRIVATE
 target_link_libraries(matrix-lib PUBLIC ${llvm_libs} ${MLIR_LIBS})
 
 # 添加可执行文件
-add_executable(matrix-compiler test/test_llvm.cpp)
+add_executable(matrix-compiler test/test_full_pipeline.cpp)
 target_compile_definitions(matrix-compiler PRIVATE
     MLIR_OPT_PATH="${MLIR_OPT}"
     MLIR_TRANSLATE_PATH="${MLIR_TRANSLATE}"
@@ -119,9 +123,6 @@ target_compile_definitions(matrix-compiler PRIVATE
 )
 target_link_libraries(matrix-compiler PRIVATE matrix-lib)
 
-# 添加测试器
-add_executable(test-parser test/test_parser.cpp)
-target_link_libraries(test-parser PRIVATE matrix-lib)
 
 # 添加Python支持
 find_package(Python3 COMPONENTS Development REQUIRED)
@@ -140,6 +141,22 @@ target_link_libraries(test-python-ast
     PRIVATE 
     ${Python3_LIBRARIES}
     matrix-lib
+)
+
+# 添加 Python AST 解析器测试
+add_executable(test-python-parser test/test_python_parser.cpp)
+target_link_libraries(test-python-parser 
+    PRIVATE 
+    matrix-lib
+    ${Python3_LIBRARIES}
+)
+
+# 添加完整流程测试
+add_executable(test-full-pipeline test/test_full_pipeline.cpp)
+target_link_libraries(test-full-pipeline 
+    PRIVATE 
+    matrix-lib
+    ${Python3_LIBRARIES}
 )
 
 # Debug 输出 paths

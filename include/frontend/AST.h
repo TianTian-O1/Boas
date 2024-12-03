@@ -19,6 +19,9 @@ public:
     void setParent(ExprAST* p) { parent = p; }
     ExprAST* getParent() const { return parent; }
     
+    // 添加clone方法
+    virtual ExprAST* clone() const = 0;
+    
     enum Kind {
         Number,
         Variable,
@@ -33,8 +36,25 @@ public:
         Assignment,
         TensorCreate,
         Matmul,
-        TensorRandom,  // Add this new kind
-        TimeCall
+        TensorRandom,
+        TimeCall,
+        For,
+        While,
+        Break,
+        Continue,
+        ListComp,
+        CompFor,
+        CompIf,
+        Argument,
+        Return,
+        Module,
+        Constant,
+        Str,
+        List,
+        Dict,
+        Subscript,
+        Attribute,
+        Range
     };
     
     virtual Kind getKind() const = 0;
@@ -101,12 +121,19 @@ public:
 // 张量表达式
 class TensorExprAST : public ExprAST {
     std::vector<std::unique_ptr<ExprAST>> elements;
+    std::vector<int64_t> dimensions;
 public:
     TensorExprAST(std::vector<std::unique_ptr<ExprAST>> elements)
-        : elements(std::move(elements)) {}
+        : elements(std::move(elements)) {
+        dimensions = {2, 2};
+    }
     
     TensorExprAST(ArrayExprAST& array)
-        : elements(array.takeElements()) {}
+        : elements(array.takeElements()) {
+        dimensions = {2, 2};
+    }
+    
+    const std::vector<int64_t>& getDimensions() const { return dimensions; }
     
     void dump(int indent = 0) const override {
         printIndent(indent);
@@ -158,9 +185,12 @@ public:
 // 变量表达式
 class VariableExprAST : public ExprAST {
     std::string name;
+    double value;
 public:
-    VariableExprAST(const std::string &name) : name(name) {}
+    VariableExprAST(const std::string &name) : name(name), value(0.0) {}
     const std::string &getName() const { return name; }
+    double getValue() const { return value; }
+    void setValue(double v) { value = v; }
     
     void dump(int indent = 0) const override {
         printIndent(indent);
@@ -262,9 +292,9 @@ public:
     void dump(int indent = 0) const override {
         printIndent(indent);
         std::cout << "Call " << callee_ << "(";
-        for (const auto& arg : args_) {
-            arg->dump(0);
-            std::cout << " ";
+        for (size_t i = 0; i < args_.size(); ++i) {
+            if (i > 0) std::cout << ", ";
+            args_[i]->dump(0);
         }
         std::cout << ")";
     }
@@ -309,6 +339,9 @@ public:
     MemberExprAST(std::unique_ptr<ExprAST> object, std::string member)
         : object(std::move(object)), member(member) {}
     
+    const ExprAST* getObject() const { return object.get(); }
+    const std::string& getMember() const { return member; }
+    
     void dump(int indent = 0) const override {
         printIndent(indent);
         std::cout << "(member ";
@@ -348,6 +381,10 @@ public:
         , cols_(std::move(cols))
         , values_(std::move(values)) {}
     
+    const ExprAST* getRows() const { return rows_.get(); }
+    const ExprAST* getCols() const { return cols_.get(); }
+    const std::vector<std::unique_ptr<ExprAST>>& getValues() const { return values_; }
+    
     void dump(int indent = 0) const override {
         printIndent(indent);
         std::cout << "tensor.create(";
@@ -361,11 +398,7 @@ public:
         }
         std::cout << "}";
     }
-    
-    const ExprAST* getRows() const { return rows_.get(); }
-    const ExprAST* getCols() const { return cols_.get(); }
-    const std::vector<std::unique_ptr<ExprAST>>& getValues() const { return values_; }
-    
+
     Kind getKind() const override { return Kind::TensorCreate; }
 };
 
@@ -379,6 +412,9 @@ public:
         : rows_(std::move(rows))
         , cols_(std::move(cols)) {}
     
+    const ExprAST* getRows() const { return rows_.get(); }
+    const ExprAST* getCols() const { return cols_.get(); }
+    
     void dump(int indent = 0) const override {
         printIndent(indent);
         std::cout << "tensor.random(";
@@ -387,10 +423,7 @@ public:
         cols_->dump(0);
         std::cout << ")";
     }
-    
-    const ExprAST* getRows() const { return rows_.get(); }
-    const ExprAST* getCols() const { return cols_.get(); }
-    
+
     Kind getKind() const override { return Kind::TensorRandom; }
 };
 
@@ -420,6 +453,106 @@ public:
     }
     
     Kind getKind() const override { return Kind::Binary; }
+};
+
+// For 循环的范围表达式
+class RangeExprAST : public ExprAST {
+    std::unique_ptr<ExprAST> start;
+    std::unique_ptr<ExprAST> end;
+    std::unique_ptr<ExprAST> step;
+public:
+    RangeExprAST(std::unique_ptr<ExprAST> start,
+                 std::unique_ptr<ExprAST> end,
+                 std::unique_ptr<ExprAST> step)
+        : start(std::move(start))
+        , end(std::move(end))
+        , step(std::move(step)) {}
+    
+    const ExprAST* getStart() const { return start.get(); }
+    const ExprAST* getEnd() const { return end.get(); }
+    const ExprAST* getStep() const { return step.get(); }
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        std::cout << "range(";
+        start->dump(0);
+        std::cout << ", ";
+        end->dump(0);
+        if (step) {
+            std::cout << ", ";
+            step->dump(0);
+        }
+        std::cout << ")";
+    }
+    
+    Kind getKind() const override { return Kind::Range; }
+};
+
+// For 循环表达式
+class ForExprAST : public ExprAST {
+    std::string iterVar;
+    std::unique_ptr<ExprAST> iterable;  // 可迭代对象（列表、range等）
+    std::vector<std::unique_ptr<ExprAST>> body;
+public:
+    ForExprAST(std::string iterVar,
+               std::unique_ptr<ExprAST> iterable,
+               std::vector<std::unique_ptr<ExprAST>> body)
+        : iterVar(std::move(iterVar))
+        , iterable(std::move(iterable))
+        , body(std::move(body)) {}
+    
+    const std::string& getIterVar() const { return iterVar; }
+    const ExprAST* getIterable() const { return iterable.get(); }
+    const std::vector<std::unique_ptr<ExprAST>>& getBody() const { return body; }
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        std::cout << "for " << iterVar << " in ";
+        iterable->dump(0);
+        std::cout << ":\n";
+        for (const auto& stmt : body) {
+            stmt->dump(indent + 1);
+            std::cout << "\n";
+        }
+    }
+    
+    Kind getKind() const override { return Kind::For; }
+};
+
+// 返回语句
+class ReturnAST : public ExprAST {
+    std::unique_ptr<ExprAST> value;
+public:
+    ReturnAST(std::unique_ptr<ExprAST> value)
+        : value(std::move(value)) {}
+    
+    const ExprAST* getValue() const { return value.get(); }
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        std::cout << "return ";
+        if (value) {
+            value->dump(0);
+        }
+    }
+    
+    Kind getKind() const override { return Kind::Return; }
+};
+
+// 字符串表达式
+class StringExprAST : public ExprAST {
+    std::string value;
+public:
+    StringExprAST(const std::string& value) : value(value) {}
+    
+    const std::string& getValue() const { return value; }
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        std::cout << "\"" << value << "\"";
+    }
+    
+    Kind getKind() const override { return Kind::Str; }
 };
 
 } // namespace matrix

@@ -68,7 +68,15 @@ cmake -DLLVM_DIR=/Users/mac/llvm-install/lib/cmake/llvm \
 
 # 构建项目
 echo -e "${YELLOW}Building project...${NC}"
-make
+# 获取CPU核心数
+if [ "$(uname)" == "Darwin" ]; then
+    # macOS
+    CORES=$(sysctl -n hw.ncpu)
+else
+    # Linux
+    CORES=$(nproc)
+fi
+make -j$CORES
 
 # 如果构建成功且指定了测试文件，则运行测试
 # 修改后的测试运行部分

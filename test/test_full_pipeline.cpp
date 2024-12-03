@@ -1,10 +1,11 @@
-#include "frontend/Parser.h"
+#include "frontend/PythonASTParser.h"
 #include "mlirops/MLIRGen.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
 #include <filesystem>
+
 #ifndef MLIR_OPT_PATH
 #error "MLIR_OPT_PATH is not defined"
 #endif
@@ -93,20 +94,12 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
             
     std::cout << "\nExecuting MLIR optimization:\n" << optCmd << "\n";
     if (system(optCmd.c_str()) != 0) {
-        // 如果失败，打印输入文件内容以帮助调试
         std::cout << "\nInput MLIR content:\n";
         std::ifstream inFile(mlirFilePath);
         if (inFile.is_open()) {
             std::cout << inFile.rdbuf();
         }
         throw std::runtime_error("Failed to execute mlir-opt");
-    }
-    
-    // 检查转换后的文件
-    std::cout << "\nChecking converted MLIR:\n";
-    std::ifstream convertedFile(llvmMlirFilePath);
-    if (convertedFile.is_open()) {
-        std::cout << convertedFile.rdbuf() << "\n";
     }
     
     // Convert to LLVM IR
@@ -120,14 +113,14 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
         throw std::runtime_error("Failed to execute mlir-translate");
     }
     
-    // Compile to assembly with optimization flags
+    // Compile to assembly
     std::string llcCmd = "\"" + llcPath + "\"" + 
         " " + llFilePath +
-        " -O3" +                           // 最高优化级别
-        " -mcpu=native" +                  // 使用本机 CPU 特性
-        " -mattr=+avx2,+fma" +            // 启用 AVX2 和 FMA 指令
-        " -enable-unsafe-fp-math" +        // 启用不安全的浮点数学优化
-        " -fp-contract=fast" +             // 快速浮点数合约
+        " -O3" +
+        " -mcpu=native" +
+        " -mattr=+avx2,+fma" +
+        " -enable-unsafe-fp-math" +
+        " -fp-contract=fast" +
         " -o " + sFilePath;
     
     std::cout << "\nGenerating optimized assembly:\n" << llcCmd << "\n";
@@ -138,14 +131,14 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
     // Final compilation with clang
     std::string clangCmd = "\"" + clangPath + "\"" + 
         " " + sFilePath + 
-        " -O3" +                           
-        " -march=native" +                 
-        " -ffast-math" +                   
-        " -fno-math-errno" +              
-        " -fno-trapping-math" +           
-        " -ffinite-math-only" +           
-        " -mllvm -force-vector-width=8" +  
-        " -mllvm -force-vector-interleave=4" +  
+        " -O3" +
+        " -march=native" +
+        " -ffast-math" +
+        " -fno-math-errno" +
+        " -fno-trapping-math" +
+        " -ffinite-math-only" +
+        " -mllvm -force-vector-width=8" +
+        " -mllvm -force-vector-interleave=4" +
         " -L" + llvmInstallPath + "/lib" +
         " -L" + projectRoot + "/build/lib" +
         " -Wl,-rpath," + llvmInstallPath + "/lib" +
@@ -169,21 +162,10 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
     
     std::cout << "\n=== MLIR compilation pipeline completed successfully ===\n";
     
-    // 如果是运行模式，设置库路径并执行
+    // 如果是运行模式，执行生成的程序
     if (mode == "--run") {
         std::cout << "\nExecuting generated program...\n";
-        
-        // 设置库路径
-        std::string currentPath = getenv("DYLD_LIBRARY_PATH") ? getenv("DYLD_LIBRARY_PATH") : "";
-        std::string newPath = llvmInstallPath + "/lib:" + currentPath;
-        setenv("DYLD_LIBRARY_PATH", newPath.c_str(), 1);
-        
-        std::string execCmd;
-        if (outputPath.length() > 0 && outputPath[0] == '/') {
-            execCmd = outputPath;
-        } else {
-            execCmd = "./" + outputPath;
-        }
+        std::string execCmd = "./" + outputPath;
         if (system(execCmd.c_str()) != 0) {
             throw std::runtime_error("Failed to execute generated program");
         }
@@ -208,7 +190,7 @@ int main(int argc, char* argv[]) {
     std::string outputFile = (argc > 3) ? argv[3] : "a.out";
 
     try {
-        // 解析输入文件
+        // 读取输入文件
         std::ifstream file(inputFile);
         if (!file.is_open()) {
             throw std::runtime_error("Could not open input file");
@@ -216,19 +198,39 @@ int main(int argc, char* argv[]) {
         std::stringstream buffer;
         buffer << file.rdbuf();
         
-        // 词法和语法分析
-        matrix::Lexer lexer(buffer.str());
-        matrix::Parser parser(lexer);
-        auto ast = parser.parse();
-        
+        // 初始化Python AST解析器
+        boas::PythonASTParser parser;
+        if (!parser.initialize()) {
+            throw std::runtime_error("Failed to initialize Python AST parser");
+        }
+
+        // 解析Python代码生成AST
+        std::cout << "Parsing Python code..." << std::endl;
+        auto ast = parser.parse(buffer.str());
+        if (!ast) {
+            throw std::runtime_error("Failed to parse Python code");
+        }
+
+        std::cout << "AST generated successfully:" << std::endl;
+        ast->dump();
+
         // 生成MLIR
+        std::cout << "\nGenerating MLIR..." << std::endl;
         matrix::MLIRGen mlirGen;
-        auto moduleOp = mlirGen.generateMLIR(ast);
-        std::string mlir = mlirGen.getMLIRString(moduleOp);
+        auto* moduleAst = dynamic_cast<matrix::ModuleAST*>(ast.get());
+        if (!moduleAst) {
+            throw std::runtime_error("AST is not a ModuleAST");
+        }
+        auto module = mlirGen.generateMLIR(moduleAst->getBody());
+        if (!module) {
+            throw std::runtime_error("Failed to generate MLIR");
+        }
+
+        std::string mlir = mlirGen.getMLIRString(module);
         
         // 编译MLIR代码
         std::string workDir = std::filesystem::current_path().string();
-        if (!compileMLIR(mlir, workDir, outputFile, mode)) {  // 使用 compileMLIR 而不是 compileToExecutable
+        if (!compileMLIR(mlir, workDir, outputFile, mode)) {
             throw std::runtime_error("Compilation failed");
         }
         
@@ -240,4 +242,4 @@ int main(int argc, char* argv[]) {
     }
 
     return 0;
-}
+} 

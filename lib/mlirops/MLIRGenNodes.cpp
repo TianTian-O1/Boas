@@ -1,5 +1,13 @@
 // MLIRGenNodes.cpp - AST节点处理实现
 #include "mlirops/MLIRGen.h"
+#include "frontend/ASTImpl.h"
+#include "frontend/BasicAST.h"
+#include "frontend/ModuleAST.h"
+#include "frontend/FunctionAST.h"
+#include <iostream>
+#include <memory>
+
+using namespace matrix;
 
 namespace matrix {
 
@@ -94,9 +102,9 @@ mlir::Value MLIRGen::generateMLIRForBinary(const BinaryExprAST* expr) {
             return nullptr;
         }
         
-        auto matmulExpr = std::make_unique<MatmulExprAST>(
-            std::make_unique<VariableExprAST>(lhs->getName()),
-            std::make_unique<VariableExprAST>(rhs->getName())
+        auto matmulExpr = std::make_unique<MatmulExprASTImpl>(
+            std::make_unique<VariableExprASTImpl>("temp_lhs"),
+            std::make_unique<VariableExprASTImpl>("temp_rhs")
         );
         
         auto result = generateMLIRForMatmul(matmulExpr.get());
@@ -125,9 +133,9 @@ mlir::Value MLIRGen::generateMLIRForCall(const CallExprAST* expr) {
         auto rhs = generateMLIRForNode(expr->getArgs()[1].get());
         if (!lhs || !rhs) return nullptr;
         
-        auto matmulExpr = std::make_unique<MatmulExprAST>(
-            std::make_unique<VariableExprAST>("temp_lhs"),
-            std::make_unique<VariableExprAST>("temp_rhs")
+        auto matmulExpr = std::make_unique<MatmulExprASTImpl>(
+            std::make_unique<VariableExprASTImpl>("temp_lhs"),
+            std::make_unique<VariableExprASTImpl>("temp_rhs")
         );
         return generateMLIRForMatmul(matmulExpr.get());
     }

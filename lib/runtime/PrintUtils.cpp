@@ -174,8 +174,7 @@ void printString(const char* str) {
 }
 
 void printInt(int64_t value) {
-    printf("%s%lld\n", getCurrentTimestamp().c_str(), value);
-    fflush(stdout);
+    printf("%s%ld\n", getCurrentTimestamp().c_str(), value);
 }
 
 double system_time_usec() {

@@ -1,0 +1,18 @@
+def calculate_sum(a, b):
+    result = a + b
+    return result
+
+def process_list(items):
+    results = []
+    for item in items:
+        if item > 0:
+            results.append(item * 2)
+    return results
+
+# List comprehension
+squares = [x * x for x in range(10) if x % 2 == 0]
+
+# While loop
+count = 0
+while count < 5:
+    count += 1 
