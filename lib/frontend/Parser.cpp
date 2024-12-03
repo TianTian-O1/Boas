@@ -187,40 +187,58 @@ std::unique_ptr<ExprAST> Parser::parseTensorCreateExpr() {
         return nullptr;
     }
     
+    if (current_token_.kind != tok_comma) {
+        return LogError("Expected ',' after cols in tensor.create");
+    }
+    getNextToken(); // eat ,
+    
+    // 解析数组表达式
+    auto values = parseArrayExpr();
+    if (!values) {
+        return nullptr;
+    }
+    
     if (current_token_.kind != tok_right_paren) {
-        return LogError("Expected ')' after cols in tensor.create");
+        return LogError("Expected ')' after values in tensor.create");
     }
     getNextToken(); // eat )
-    
-    if (current_token_.kind != tok_left_brace) {
-        return LogError("Expected '{' after tensor.create()");
-    }
-    getNextToken(); // eat {
-    
-    std::vector<std::unique_ptr<ExprAST>> values;
-    while (current_token_.kind != tok_right_brace) {
-        if (auto val = parseExpression()) {
-            values.push_back(std::move(val));
-        } else {
-            return nullptr;
-        }
-        
-        if (current_token_.kind == tok_right_brace) {
-            break;
-        }
-        
-        if (current_token_.kind != tok_comma) {
-            return LogError("Expected '}' or ',' in tensor values");
-        }
-        getNextToken(); // eat ,
-    }
-    getNextToken(); // eat }
     
     return std::make_unique<TensorCreateExprASTImpl>(
         std::move(rows),
         std::move(cols),
         std::move(values)
     );
+}
+
+std::unique_ptr<ExprAST> Parser::parseArrayExpr() {
+    if (current_token_.kind != tok_left_bracket) {
+        return LogError("Expected '[' to start array expression");
+    }
+    getNextToken(); // eat [
+
+    std::vector<std::unique_ptr<ExprAST>> elements;
+    if (current_token_.kind != tok_right_bracket) {
+        while (true) {
+            if (auto element = parseExpression()) {
+                elements.push_back(std::move(element));
+            } else {
+                return nullptr;
+            }
+
+            if (current_token_.kind == tok_right_bracket) {
+                break;
+            }
+
+            if (current_token_.kind != tok_comma) {
+                return LogError("Expected ',' or ']' in array expression");
+            }
+            getNextToken(); // eat ,
+        }
+    }
+
+    getNextToken(); // eat ]
+
+    return std::make_unique<ArrayExprASTImpl>(std::move(elements));
 }
 
 } // namespace matrix

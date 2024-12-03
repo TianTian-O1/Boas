@@ -72,6 +72,7 @@ public:
     std::unique_ptr<ExprAST> parseCompIfExpr();
     std::unique_ptr<ExprAST> parseReturnExpr();
     std::unique_ptr<ExprAST> parseModuleExpr();
+    std::unique_ptr<ExprAST> parseArrayExpr();
 };
 
 } // namespace matrix

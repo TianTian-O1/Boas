@@ -147,8 +147,8 @@ import tensor
 
 def main():
     # 创建 2x2 矩阵
-    A = tensor.create(2,2){1,2,2,3}  # 创建矩阵 [[1,2], [2,3]]
-    B = tensor.create(2,2){5,1,7,8}  # 创建矩阵 [[5,1], [7,8]]
+    A = tensor.create(2,2,[1,2,2,3])  # 创建矩阵 [[1,2], [2,3]]
+    B = tensor.create(2,2,[5,1,7,8])  # 创建矩阵 [[5,1], [7,8]]
     
     # 执行矩阵乘法
     C = tensor.matmul(A, B)
@@ -197,7 +197,7 @@ def main():
 ### 主要 API 说明
 
 1. **tensor 模块**
-   - `tensor.create(rows, cols){values...}`: 创建指定大小的矩阵并初始化值
+   - `tensor.create(rows, cols,[values...])`: 创建指定大小的矩阵并初始化值
    - `tensor.random(rows, cols)`: 创建指定大小的随机矩阵
    - `tensor.matmul(A, B)`: 执行矩阵乘法运算
    - `print(tensor)`: 打印矩阵内容

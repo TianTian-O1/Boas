@@ -51,6 +51,7 @@ public:
         Constant,
         Str,
         List,
+        ListIndex,
         Dict,
         Subscript,
         Attribute,
@@ -99,6 +100,14 @@ public:
     ArrayExprAST(std::vector<std::unique_ptr<ExprAST>> elements)
         : elements(std::move(elements)) {}
     
+    const std::vector<std::unique_ptr<ExprAST>>& getElements() const { return elements; }
+
+    std::vector<std::unique_ptr<ExprAST>> takeElements() {
+        return std::move(elements);
+    }
+
+    Kind getKind() const override { return Kind::Array; }
+
     void dump(int indent = 0) const override {
         printIndent(indent);
         std::cout << "[";
@@ -108,14 +117,6 @@ public:
         }
         std::cout << "]";
     }
-
-    const std::vector<std::unique_ptr<ExprAST>>& getElements() const { return elements; }
-
-    std::vector<std::unique_ptr<ExprAST>> takeElements() {
-        return std::move(elements);
-    }
-
-    Kind getKind() const override { return Kind::Array; }
 };
 
 // 张量表达式
@@ -180,6 +181,68 @@ public:
     static bool classof(const ExprAST* expr) {
         return expr->getKind() == Kind::Matmul;
     }
+
+    ExprAST* clone() const override {
+        return new MatmulExprAST(
+            std::unique_ptr<ExprAST>(lhs->clone()),
+            std::unique_ptr<ExprAST>(rhs->clone())
+        );
+    }
+};
+
+// 列表表达式
+class ListExprAST : public ExprAST {
+    std::vector<std::unique_ptr<ExprAST>> elements;
+public:
+    ListExprAST(std::vector<std::unique_ptr<ExprAST>> elements)
+        : elements(std::move(elements)) {}
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        std::cout << "[";
+        for (size_t i = 0; i < elements.size(); ++i) {
+            if (i > 0) std::cout << ", ";
+            elements[i]->dump(0);
+        }
+        std::cout << "]";
+    }
+
+    const std::vector<std::unique_ptr<ExprAST>>& getElements() const { 
+        return elements; 
+    }
+
+    Kind getKind() const override { return Kind::List; }
+    
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::List;
+    }
+};
+
+// 列表索引访问表达式
+class ListIndexExprAST : public ExprAST {
+    std::unique_ptr<ExprAST> list;
+    std::unique_ptr<ExprAST> index;
+public:
+    ListIndexExprAST(std::unique_ptr<ExprAST> list, 
+                     std::unique_ptr<ExprAST> index)
+        : list(std::move(list)), index(std::move(index)) {}
+    
+    const ExprAST* getList() const { return list.get(); }
+    const ExprAST* getIndex() const { return index.get(); }
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        list->dump(0);
+        std::cout << "[";
+        index->dump(0);
+        std::cout << "]";
+    }
+    
+    Kind getKind() const override { return Kind::ListIndex; }
+    
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::ListIndex;
+    }
 };
 
 // 变量表达式
@@ -201,6 +264,12 @@ public:
 
     static bool classof(const ExprAST* expr) {
         return expr->getKind() == Kind::Variable;
+    }
+
+    ExprAST* clone() const override {
+        auto* cloned = new VariableExprAST(name);
+        cloned->setValue(value);
+        return cloned;
     }
 };
 
@@ -370,61 +439,84 @@ public:
 };
 
 class TensorCreateExprAST : public ExprAST {
-    std::unique_ptr<ExprAST> rows_;
-    std::unique_ptr<ExprAST> cols_;
-    std::vector<std::unique_ptr<ExprAST>> values_;
+    std::unique_ptr<ExprAST> rows;
+    std::unique_ptr<ExprAST> cols;
+    std::unique_ptr<ExprAST> values;  // 现在是一个单独的 ArrayExprAST
+
 public:
     TensorCreateExprAST(std::unique_ptr<ExprAST> rows,
                         std::unique_ptr<ExprAST> cols,
-                        std::vector<std::unique_ptr<ExprAST>> values)
-        : rows_(std::move(rows))
-        , cols_(std::move(cols))
-        , values_(std::move(values)) {}
+                        std::unique_ptr<ExprAST> values)
+        : rows(std::move(rows))
+        , cols(std::move(cols))
+        , values(std::move(values)) {}
     
-    const ExprAST* getRows() const { return rows_.get(); }
-    const ExprAST* getCols() const { return cols_.get(); }
-    const std::vector<std::unique_ptr<ExprAST>>& getValues() const { return values_; }
+    const ExprAST* getRows() const { return rows.get(); }
+    const ExprAST* getCols() const { return cols.get(); }
+    const ExprAST* getValues() const { return values.get(); }
+    
+    Kind getKind() const override { return Kind::TensorCreate; }
+    
+    ExprAST* clone() const override {
+        return new TensorCreateExprAST(
+            std::unique_ptr<ExprAST>(rows->clone()),
+            std::unique_ptr<ExprAST>(cols->clone()),
+            std::unique_ptr<ExprAST>(values->clone())
+        );
+    }
     
     void dump(int indent = 0) const override {
         printIndent(indent);
         std::cout << "tensor.create(";
-        rows_->dump(0);
+        rows->dump(0);
         std::cout << ", ";
-        cols_->dump(0);
-        std::cout << "){";
-        for (size_t i = 0; i < values_.size(); ++i) {
-            if (i > 0) std::cout << ", ";
-            values_[i]->dump(0);
-        }
-        std::cout << "}";
+        cols->dump(0);
+        std::cout << ", ";
+        values->dump(0);
+        std::cout << ")";
     }
-
-    Kind getKind() const override { return Kind::TensorCreate; }
 };
 
 
 class TensorRandomExprAST : public ExprAST {
-    std::unique_ptr<ExprAST> rows_;
-    std::unique_ptr<ExprAST> cols_;
+    std::unique_ptr<ExprAST> rows;
+    std::unique_ptr<ExprAST> cols;
+    std::string name;
+
 public:
     TensorRandomExprAST(std::unique_ptr<ExprAST> rows,
-                        std::unique_ptr<ExprAST> cols)
-        : rows_(std::move(rows))
-        , cols_(std::move(cols)) {}
+                        std::unique_ptr<ExprAST> cols,
+                        std::string name = "")
+        : rows(std::move(rows))
+        , cols(std::move(cols))
+        , name(std::move(name)) {}
     
-    const ExprAST* getRows() const { return rows_.get(); }
-    const ExprAST* getCols() const { return cols_.get(); }
+    const ExprAST* getRows() const { return rows.get(); }
+    const ExprAST* getCols() const { return cols.get(); }
+    const std::string& getName() const { return name; }
+    void setName(std::string newName) { name = std::move(newName); }
+    
+    ExprAST* clone() const override {
+        return new TensorRandomExprAST(
+            std::unique_ptr<ExprAST>(rows->clone()),
+            std::unique_ptr<ExprAST>(cols->clone()),
+            name
+        );
+    }
+    
+    Kind getKind() const override { return Kind::TensorRandom; }
     
     void dump(int indent = 0) const override {
         printIndent(indent);
-        std::cout << "tensor.random(";
-        rows_->dump(0);
+        std::cout << "random(";
+        rows->dump(0);
         std::cout << ", ";
-        cols_->dump(0);
+        cols->dump(0);
         std::cout << ")";
+        if (!name.empty()) {
+            std::cout << " -> " << name;
+        }
     }
-
-    Kind getKind() const override { return Kind::TensorRandom; }
 };
 
 class BinaryExprAST : public ExprAST {
@@ -519,26 +611,32 @@ public:
     Kind getKind() const override { return Kind::For; }
 };
 
-// 返回语句
-class ReturnAST : public ExprAST {
-    std::unique_ptr<ExprAST> value;
+
+class ReturnExprAST : public ExprAST {
+    std::unique_ptr<ExprAST> returnValue;
 public:
-    ReturnAST(std::unique_ptr<ExprAST> value)
-        : value(std::move(value)) {}
+    ReturnExprAST(std::unique_ptr<ExprAST> value)
+        : returnValue(std::move(value)) {}
     
-    const ExprAST* getValue() const { return value.get(); }
+    ReturnExprAST() : returnValue(nullptr) {}  // 支持无返回值
+    
+    const ExprAST* getValue() const { return returnValue.get(); }
     
     void dump(int indent = 0) const override {
         printIndent(indent);
-        std::cout << "return ";
-        if (value) {
-            value->dump(0);
+        std::cout << "return";
+        if (returnValue) {
+            std::cout << " ";
+            returnValue->dump(0);
         }
     }
     
     Kind getKind() const override { return Kind::Return; }
+    
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::Return;
+    }
 };
-
 // 字符串表达式
 class StringExprAST : public ExprAST {
     std::string value;

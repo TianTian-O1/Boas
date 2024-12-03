@@ -403,40 +403,15 @@ class TensorCreateExprASTImpl : public matrix::TensorCreateExprAST {
 public:
     TensorCreateExprASTImpl(std::unique_ptr<ExprAST> rows,
                            std::unique_ptr<ExprAST> cols,
-                           std::vector<std::unique_ptr<ExprAST>> values)
+                           std::unique_ptr<ExprAST> values)
         : TensorCreateExprAST(std::move(rows), std::move(cols), std::move(values)) {}
     
     ExprAST* clone() const override {
         return new TensorCreateExprASTImpl(
             std::unique_ptr<ExprAST>(getRows()->clone()),
             std::unique_ptr<ExprAST>(getCols()->clone()),
-            cloneVector(getValues()));
-    }
-
-    void dump(int indent = 0) const override {
-        printIndent(indent);
-        std::cout << "tensor.create(";
-        getRows()->dump(0);
-        std::cout << ", ";
-        getCols()->dump(0);
-        std::cout << ", ";
-        // 直接打印值列表
-        const auto& values = getValues();
-        for (size_t i = 0; i < values.size(); ++i) {
-            if (i > 0) std::cout << ", ";
-            values[i]->dump(0);
-        }
-        std::cout << ")";
-    }
-
-private:
-    std::vector<std::unique_ptr<ExprAST>> cloneVector(
-        const std::vector<std::unique_ptr<ExprAST>>& vec) const {
-        std::vector<std::unique_ptr<ExprAST>> result;
-        for (const auto& item : vec) {
-            result.push_back(std::unique_ptr<ExprAST>(item->clone()));
-        }
-        return result;
+            std::unique_ptr<ExprAST>(getValues()->clone())
+        );
     }
 };
 
@@ -480,39 +455,17 @@ public:
     }
 };
 
-class ArrayExprASTImpl : public matrix::ExprAST {
-private:
-    std::vector<std::unique_ptr<ExprAST>> elements;
-
+class ArrayExprASTImpl : public ArrayExprAST {
 public:
-    ArrayExprASTImpl(std::vector<std::unique_ptr<ExprAST>> elems)
-        : elements(std::move(elems)) {}
+    ArrayExprASTImpl(std::vector<std::unique_ptr<ExprAST>> elements)
+        : ArrayExprAST(std::move(elements)) {}
     
     ExprAST* clone() const override {
-        std::vector<std::unique_ptr<ExprAST>> newElements;
-        for (const auto& elem : elements) {
-            newElements.push_back(std::unique_ptr<ExprAST>(elem->clone()));
+        std::vector<std::unique_ptr<ExprAST>> clonedElements;
+        for (const auto& element : getElements()) {
+            clonedElements.push_back(std::unique_ptr<ExprAST>(element->clone()));
         }
-        return new ArrayExprASTImpl(std::move(newElements));
-    }
-
-    const std::vector<std::unique_ptr<ExprAST>>& getElements() const { return elements; }
-    std::vector<std::unique_ptr<ExprAST>>& getElements() { return elements; }
-    Kind getKind() const override { return Kind::Array; }
-
-    void dump(int indent = 0) const override {
-        std::cout << "[";
-        for (size_t i = 0; i < elements.size(); ++i) {
-            if (i > 0) std::cout << ", ";
-            std::stringstream ss;
-            std::streambuf* old = std::cout.rdbuf(ss.rdbuf());
-            elements[i]->dump(0);
-            std::cout.rdbuf(old);
-            std::string elemStr = ss.str();
-            elemStr.erase(std::remove(elemStr.begin(), elemStr.end(), '\n'), elemStr.end());
-            std::cout << elemStr;
-        }
-        std::cout << "]";
+        return new ArrayExprASTImpl(std::move(clonedElements));
     }
 };
 

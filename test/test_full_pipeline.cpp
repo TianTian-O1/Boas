@@ -90,10 +90,12 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
         "func.func(canonicalize),"
         "convert-func-to-llvm,"
         "finalize-memref-to-llvm,"
-        "reconcile-unrealized-casts)\"";
+        "reconcile-unrealized-casts)\"" +
+        " --mlir-print-ir-before-all";  // 移除方言注册选项
             
     std::cout << "\nExecuting MLIR optimization:\n" << optCmd << "\n";
     if (system(optCmd.c_str()) != 0) {
+        // 如果失败，打印输入文件内容以帮助调试
         std::cout << "\nInput MLIR content:\n";
         std::ifstream inFile(mlirFilePath);
         if (inFile.is_open()) {
@@ -102,25 +104,33 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
         throw std::runtime_error("Failed to execute mlir-opt");
     }
     
+    // 检查转换后的文件
+    std::cout << "\nChecking converted MLIR:\n";
+    std::ifstream convertedFile(llvmMlirFilePath);
+    if (convertedFile.is_open()) {
+        std::cout << convertedFile.rdbuf() << "\n";
+    }
+    
     // Convert to LLVM IR
     std::string translateCmd = "\"" + mlirTranslatePath + "\"" +
         " --mlir-to-llvmir" +
         " " + llvmMlirFilePath +
-        " -o " + llFilePath;
+        " -o " + llFilePath +
+        " --allow-unregistered-dialect";  // 只保留这个选项
             
     std::cout << "\nConverting to LLVM IR:\n" << translateCmd << "\n";
     if (system(translateCmd.c_str()) != 0) {
         throw std::runtime_error("Failed to execute mlir-translate");
     }
     
-    // Compile to assembly
+    // Compile to assembly with optimization flags
     std::string llcCmd = "\"" + llcPath + "\"" + 
         " " + llFilePath +
-        " -O3" +
-        " -mcpu=native" +
-        " -mattr=+avx2,+fma" +
-        " -enable-unsafe-fp-math" +
-        " -fp-contract=fast" +
+        " -O3" +                           // 最高优化级别
+        " -mcpu=native" +                  // 使用本机 CPU 特性
+        " -mattr=+avx2,+fma" +            // 启用 AVX2 和 FMA 指令
+        " -enable-unsafe-fp-math" +        // 启用不安全的浮点数学优化
+        " -fp-contract=fast" +             // 快速浮点数合约
         " -o " + sFilePath;
     
     std::cout << "\nGenerating optimized assembly:\n" << llcCmd << "\n";
@@ -131,14 +141,14 @@ bool compileMLIR(const std::string& mlir, const std::string& workDir, const std:
     // Final compilation with clang
     std::string clangCmd = "\"" + clangPath + "\"" + 
         " " + sFilePath + 
-        " -O3" +
-        " -march=native" +
-        " -ffast-math" +
-        " -fno-math-errno" +
-        " -fno-trapping-math" +
-        " -ffinite-math-only" +
-        " -mllvm -force-vector-width=8" +
-        " -mllvm -force-vector-interleave=4" +
+        " -O3" +                           
+        " -march=native" +                 
+        " -ffast-math" +                   
+        " -fno-math-errno" +              
+        " -fno-trapping-math" +           
+        " -ffinite-math-only" +           
+        " -mllvm -force-vector-width=8" +  
+        " -mllvm -force-vector-interleave=4" +  
         " -L" + llvmInstallPath + "/lib" +
         " -L" + projectRoot + "/build/lib" +
         " -Wl,-rpath," + llvmInstallPath + "/lib" +

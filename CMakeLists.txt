@@ -68,6 +68,7 @@ add_library(matrix-lib
     lib/frontend/python_parser/PythonASTNodes.cpp
     lib/mlirops/MLIRGen.cpp
     lib/mlirops/MLIRGenMatrix.cpp
+    lib/mlirops/MLIRGenList.cpp
     lib/mlirops/MLIRGenNodes.cpp
     lib/mlirops/MLIRGenTensor.cpp
     lib/mlirops/MLIRGenTiming.cpp

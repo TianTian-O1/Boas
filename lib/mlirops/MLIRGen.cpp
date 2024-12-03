@@ -113,18 +113,8 @@ mlir::ModuleOp MLIRGen::generateMLIR(const std::vector<std::unique_ptr<ExprAST>>
     std::cerr << "Number of AST nodes: " << ast.size() << "\n";
     
     try {
-        // Create main function
-        auto mainType = mlir::FunctionType::get(context.get(), {}, {builder->getI32Type()});
-        auto mainFunc = mlir::func::FuncOp::create(
-            builder->getUnknownLoc(),
-            "main",
-            mainType
-        );
-        
-        auto entryBlock = mainFunc.addEntryBlock();
-        builder->setInsertionPointToStart(entryBlock);
-        
-        module.push_back(mainFunc);
+        // 不再在这里创建 main 函数
+        // 而是让它通过 AST 节点处理来创建
         
         // Process AST nodes
         for (const auto& node : ast) {
@@ -134,19 +124,34 @@ mlir::ModuleOp MLIRGen::generateMLIR(const std::vector<std::unique_ptr<ExprAST>>
             }
         }
         
-        // Add return statement
-        auto zero = builder->create<mlir::arith::ConstantIntOp>(
-            builder->getUnknownLoc(),
-            0,
-            builder->getI32Type()
-        );
-        builder->create<mlir::func::ReturnOp>(
-            builder->getUnknownLoc(),
-            mlir::ValueRange{zero}
-        );
-
-        return module;
+        // 检查是否存在 main 函数
+        if (!module.lookupSymbol<mlir::func::FuncOp>("main")) {
+            // 如果不存在，创建一个默认的 main 函数
+            auto mainType = mlir::FunctionType::get(context.get(), {}, {builder->getI32Type()});
+            auto mainFunc = mlir::func::FuncOp::create(
+                builder->getUnknownLoc(),
+                "main",
+                mainType
+            );
+            
+            auto entryBlock = mainFunc.addEntryBlock();
+            builder->setInsertionPointToStart(entryBlock);
+            
+            // Add return statement
+            auto zero = builder->create<mlir::arith::ConstantIntOp>(
+                builder->getUnknownLoc(),
+                0,
+                builder->getI32Type()
+            );
+            builder->create<mlir::func::ReturnOp>(
+                builder->getUnknownLoc(),
+                mlir::ValueRange{zero}
+            );
+            
+            module.push_back(mainFunc);
+        }
         
+        return module;
     } catch (const std::exception& e) {
         std::cerr << "Error in generateMLIR: " << e.what() << "\n";
         return nullptr;
@@ -154,14 +159,11 @@ mlir::ModuleOp MLIRGen::generateMLIR(const std::vector<std::unique_ptr<ExprAST>>
 }
 
 mlir::Value MLIRGen::generateMLIRForNode(const ExprAST* node) {
-    if (!node) {
-        std::cerr << "Error: Null node passed to generateMLIRForNode\n";
-        return nullptr;
-    }
-
-    std::cerr << "[DEBUG] generateMLIRForNode kind: " << node->getKind() << "\n";
-
+    if (!node) return nullptr;
+    
     try {
+        std::cerr << "[DEBUG] generateMLIRForNode kind: " << node->getKind() << "\n";
+        
         switch (node->getKind()) {
             case ExprAST::Number:
                 return generateNumberMLIR(static_cast<const NumberExprAST*>(node));
@@ -190,13 +192,26 @@ mlir::Value MLIRGen::generateMLIRForNode(const ExprAST* node) {
             case ExprAST::TensorRandom:
                 return generateMLIRForTensorRandom(static_cast<const TensorRandomExprAST*>(node));
             case ExprAST::TimeCall:
-                if (auto timeCall = static_cast<const TimeCallExprAST*>(node)) {
-                    if (timeCall->getFuncName() == "now") {
-                        return generateTimeNowMLIR(timeCall);
+                return generateTimeNowMLIR(static_cast<const TimeCallExprAST*>(node));
+            case ExprAST::List:
+                return generateList(static_cast<const ListExprAST*>(node));
+            case ExprAST::ListIndex:
+                return generateListIndex(static_cast<const ListIndexExprAST*>(node));
+            case ExprAST::Return: {
+                auto returnStmt = llvm::cast<ReturnExprAST>(node);
+                mlir::Value returnValue;
+                if (returnStmt->getValue()) {
+                    returnValue = generateMLIRForNode(returnStmt->getValue());
+                    if (!returnValue) {
+                        std::cerr << "Error: Failed to generate return value\n";
+                        return nullptr;
                     }
+                    
+                    // 直接返回值，不生成 ReturnOp
+                    return returnValue;
                 }
-                std::cerr << "Unknown time function\n";
                 return nullptr;
+            }
             default:
                 std::cerr << "Error: Unhandled node kind: " << node->getKind() << "\n";
                 return nullptr;
@@ -212,6 +227,47 @@ std::string MLIRGen::getMLIRString(mlir::ModuleOp module) {
     llvm::raw_string_ostream os(output);
     module.print(os);
     return output;
+}
+
+mlir::Value MLIRGen::generate(const ExprAST* expr) {
+    if (!expr) return nullptr;
+    
+    switch (expr->getKind()) {
+        case ExprAST::Kind::Number:
+            return createConstantF64(static_cast<const NumberExprAST*>(expr)->getValue());
+            
+        case ExprAST::Kind::Variable:
+            return symbolTable[static_cast<const VariableExprAST*>(expr)->getName()];
+            
+        case ExprAST::Kind::List:
+            return generateList(static_cast<const ListExprAST*>(expr));
+            
+        case ExprAST::Kind::ListIndex:
+            return generateListIndex(static_cast<const ListIndexExprAST*>(expr));
+            
+        case ExprAST::Kind::Assignment:
+            return generateMLIRForAssignment(static_cast<const AssignmentExprAST*>(expr));
+            
+        case ExprAST::Kind::Function:
+            return generateMLIRForFunction(static_cast<const FunctionAST*>(expr));
+            
+        case ExprAST::Kind::Call:
+            return generateMLIRForCall(static_cast<const CallExprAST*>(expr));
+            
+        case ExprAST::Kind::Print:
+            return generateMLIRForPrint(static_cast<const PrintExprAST*>(expr));
+            
+        case ExprAST::Kind::Matmul:
+            return generateMLIRForMatmul(static_cast<const MatmulExprAST*>(expr));
+            
+        case ExprAST::Kind::TensorRandom:
+            return generateMLIRForTensorRandom(static_cast<const TensorRandomExprAST*>(expr));
+            
+        default:
+            std::cerr << "Error: Unhandled expression kind in generate(): " 
+                      << expr->getKind() << "\n";
+            return nullptr;
+    }
 }
 
 } // namespace matrix

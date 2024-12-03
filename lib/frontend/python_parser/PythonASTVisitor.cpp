@@ -103,20 +103,13 @@ std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitCall(const CallNode* nod
                     std::move(args[0]),
                     std::move(args[1])
                 );
-            } else if (methodName == "create" && args.size() >= 3) {
+            } else if (methodName == "create" && args.size() == 3) {
                 // 前两个参数是维度，第三个参数是初始化列表
-                auto* arrayExpr = dynamic_cast<matrix::ArrayExprAST*>(args[2].get());
-                if (arrayExpr) {
-                    std::vector<std::unique_ptr<matrix::ExprAST>> values;
-                    for (const auto& element : arrayExpr->getElements()) {
-                        values.push_back(std::unique_ptr<matrix::ExprAST>(element->clone()));
-                    }
-                    return std::make_unique<matrix::TensorCreateExprASTImpl>(
-                        std::move(args[0]),
-                        std::move(args[1]),
-                        std::move(values)
-                    );
-                }
+                return std::make_unique<matrix::TensorCreateExprASTImpl>(
+                    std::move(args[0]),
+                    std::move(args[1]),
+                    std::move(args[2])
+                );
             }
         }
     } else if (funcName == "matmul") {

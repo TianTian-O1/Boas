@@ -32,6 +32,7 @@ private:
     std::unique_ptr<mlir::OpBuilder> builder;
     mlir::ModuleOp module;
     std::map<std::string, mlir::Value> symbolTable;
+    std::vector<std::map<std::string, mlir::Value>> scopeStack;
 
     // Core methods
     void initializeContext();
@@ -41,6 +42,9 @@ private:
 
     // AST node handlers - defined in MLIRGenNodes.cpp
     mlir::Value generateMLIRForFunction(const FunctionAST* func);
+    void handleFunctionReturn(const FunctionAST* func, mlir::Value result, mlir::Block* entryBlock);
+    void handleDefaultReturn(const FunctionAST* func, mlir::Block* entryBlock);
+    void initializeMemRefToZero(mlir::Value memref, mlir::Value rows, mlir::Value cols);
     mlir::Value generateMLIRForImport(const ImportAST* import);
     mlir::Value generateMLIRForVariable(const VariableExprAST* expr); 
     mlir::Value generateMLIRForAssignment(const AssignmentExprAST* expr);
@@ -58,7 +62,7 @@ private:
     // Matrix operations - defined in MLIRGenMatrix.cpp 
     mlir::Value generateMLIRForMatmul(const MatmulExprAST* expr);
     mlir::Value createOptimizedMatmul(mlir::Value lhs, mlir::Value rhs, mlir::Value result,
-                                     int64_t M, int64_t N, int64_t K);
+                                     mlir::Value M, mlir::Value N, mlir::Value K);
     mlir::Value createBlockedMatmul(mlir::Value lhs, mlir::Value rhs, const MatmulExprAST* expr);
     mlir::Value createVectorizedMatmul(mlir::Value lhs, mlir::Value rhs, const MatmulExprAST* expr);
 
@@ -96,6 +100,22 @@ private:
                                          mlir::Value result,
                                          int64_t M, int64_t N, int64_t K);
     void addMemoryAccessAttributes(mlir::Operation* op);
+
+    // 添加列表相关的辅助方法
+    mlir::Value createList(const std::vector<mlir::Value>& elements);
+    mlir::Value getListElement(mlir::Value list, mlir::Value index);
+    mlir::Value setListElement(mlir::Value list, mlir::Value index, mlir::Value value);
+    
+    // 添加 generate 函数声明
+    mlir::Value generate(const ExprAST* expr);
+
+    mlir::Value generateListIndex(const ListIndexExprAST* expr);
+
+public:
+    // 列表操作的公共接口
+    mlir::Value generateList(const ListExprAST* list);
+    void pushScope();
+    void popScope();
 };
 
 } // namespace matrix

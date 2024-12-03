@@ -11,8 +11,8 @@ def benchmark(size):
 def main():
     sizes = [2,3,4]
     # for size in sizes:
-    #    C4 = benchmark(size)
-    #    print(C4)
+    C4 = benchmark(3)
+    print(C4)
 
     # 使用列表初始化
     A = tensor.create(2, 2, [1,2,2,3])
