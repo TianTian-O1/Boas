@@ -44,7 +44,7 @@ mlir::Value MLIRGen::getListElement(mlir::Value list, mlir::Value index) {
     auto loc = builder->getUnknownLoc();
     
     // 确保列表是一维 memref
-    auto listType = list.getType().dyn_cast<mlir::MemRefType>();
+    auto listType = mlir::dyn_cast<mlir::MemRefType>(list.getType());
     if (!listType || listType.getRank() != 1) {
         std::cerr << "Error: List must be a 1D memref\n";
         return nullptr;
@@ -64,7 +64,7 @@ mlir::Value MLIRGen::setListElement(mlir::Value list,
     auto loc = builder->getUnknownLoc();
     
     // 确保列表是一维 memref
-    auto listType = list.getType().dyn_cast<mlir::MemRefType>();
+    auto listType = mlir::dyn_cast<mlir::MemRefType>(list.getType());
     if (!listType || listType.getRank() != 1) {
         std::cerr << "Error: List must be a 1D memref\n";
         return nullptr;
@@ -95,7 +95,7 @@ mlir::Value MLIRGen::generateListIndex(const ListIndexExprAST* expr) {
     }
     
     // 确保列表是一维 memref
-    auto listType = list.getType().dyn_cast<mlir::MemRefType>();
+    auto listType = mlir::dyn_cast<mlir::MemRefType>(list.getType());
     if (!listType || listType.getRank() != 1) {
         std::cerr << "Error: List must be a 1D memref\n";
         return nullptr;
