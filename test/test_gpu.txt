@@ -1,0 +1,27 @@
+import tensor
+
+# 设置全局设备为GPU
+device = "gpu"
+
+def benchmark(size):
+    # 创建随机矩阵并移至GPU
+    A4 = tensor.random(size, size).to(device)
+    B4 = tensor.random(size, size).to(device)
+    C4 = tensor.matmul(A4, B4)  # matmul会自动在相同设备上执行
+    return C4
+
+def main():
+    sizes = [2,3,4]
+    # for size in sizes:
+    C4 = benchmark(3)
+    print(C4)
+
+    # 使用列表初始化并移至GPU
+    A = tensor.create(2, 2, [1,2,2,3]).to(device)
+    B = tensor.create(2, 2, [5,1,7,8]).to(device)
+    C = tensor.matmul(A, B)  # matmul会自动在相同设备上执行
+    
+    print(C)
+
+if __name__ == "__main__":
+    main()
