@@ -1,51 +1,52 @@
-#include "frontend/PythonASTParser.h"
+#include "frontend/python_parser/PythonASTBuilder.h"
 #include <iostream>
 #include <string>
+#include <fstream>
+#include <sstream>
 
-void testTensorFunc() {
-    std::string testCode = R"(
-import tensor
-
-def benchmark(size):
-    # 4 x 4
-    A4 = tensor.random(size, size)
-    B4 = tensor.random(size, size)
-    C4 = tensor.matmul(A4, B4)
-    return C4
-
-def main():
-    sizes = [2,3,4]
-    for size in sizes:
-        C4 = benchmark(size)
-        print(C4)
-    print("successfully")
-
-    # 使用列表初始化
-    A = tensor.create(2, 2, [1,2,2,3])
-    B = tensor.create(2, 2, [5,1,7,8])
-    C = tensor.matmul(A, B)
-    print(C)
-)";
-
-    boas::PythonASTParser parser;
-    
-    if (!parser.initialize()) {
-        std::cerr << "Failed to initialize parser" << std::endl;
-        return;
+// 读取文件内容
+std::string readFile(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Error: Cannot open file " << filename << std::endl;
+        return "";
     }
-
-    auto ast = parser.parse(testCode);
-    if (!ast) {
-        std::cerr << "Failed to parse tensor function code" << std::endl;
-        return;
-    }
-
-    std::cout << "Parsing tensor function code successful!" << std::endl;
-    ast->dump();
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
 }
 
-int main() {
-    std::cout << "Testing tensor function parsing..." << std::endl;
-    testTensorFunc();
+void testPythonParser(const std::string& filename) {
+    // 读取测试文件
+    std::string testCode = readFile(filename);
+    if (testCode.empty()) {
+        std::cerr << "Error: Empty file or failed to read file" << std::endl;
+        return;
+    }
+
+    std::cout << "Source code to parse:\n" << testCode << "\n" << std::endl;
+
+    boas::python::PythonASTBuilder builder;
+    auto ast = builder.buildFromSource(testCode);
+    
+    if (!ast) {
+        std::cerr << "Error: Failed to parse code from " << filename << std::endl;
+        return;
+    }
+
+    std::cout << "Successfully parsed " << filename << "!" << std::endl;
+    std::cout << "AST structure:" << std::endl;
+    ast->dump(0);
+    std::cout << std::endl;
+}
+
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " <test_file>" << std::endl;
+        return 1;
+    }
+
+    std::cout << "Testing Python parser with file: " << argv[1] << std::endl;
+    testPythonParser(argv[1]);
     return 0;
 } 

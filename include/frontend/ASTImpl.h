@@ -347,8 +347,7 @@ public:
 
 class ImportASTImpl : public matrix::ImportAST {
 public:
-    ImportASTImpl(std::string moduleName)
-        : ImportAST(std::move(moduleName)) {}
+    ImportASTImpl(std::string name) : ImportAST(std::move(name)) {}
     
     ExprAST* clone() const override {
         return new ImportASTImpl(getModuleName());

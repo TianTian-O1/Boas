@@ -2,182 +2,146 @@
 #include "frontend/python_parser/PythonASTNodes.h"
 #include "frontend/ASTImpl.h"
 #include <memory>
-#include <string>
+#include <iostream>
 
 namespace boas {
 namespace python {
 
 std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitBinOp(const BinOpNode* node) {
-    auto left = node->getLeft()->accept(this);
-    auto right = node->getRight()->accept(this);
+    auto left = node->left->accept(this);
+    auto right = node->right->accept(this);
     
-    if (node->getOp() == "@") {
+    if (node->op == "@") {
         return std::make_unique<matrix::MatmulExprASTImpl>(
             std::move(left),
             std::move(right)
         );
-    } else {
-        return std::make_unique<matrix::BinaryExprASTImpl>(
-            std::move(left),
-            std::move(right),
-            node->getOp()
-        );
     }
+    
+    return std::make_unique<matrix::BinaryExprASTImpl>(
+        std::move(left),
+        std::move(right),
+        node->op
+    );
 }
 
 std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitNum(const NumNode* node) {
-    return std::make_unique<matrix::NumberExprASTImpl>(node->getValue());
+    return std::make_unique<matrix::NumberExprASTImpl>(node->value);
 }
 
 std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitName(const NameNode* node) {
-    return std::make_unique<matrix::VariableExprASTImpl>(node->getId());
+    return std::make_unique<matrix::VariableExprASTImpl>(node->id);
 }
 
 std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitAssign(const AssignNode* node) {
-    auto value = node->getValue()->accept(this);
+    auto value = node->value->accept(this);
     return std::make_unique<matrix::AssignmentExprASTImpl>(
-        node->getTarget(),
+        node->target,
         std::move(value)
     );
 }
 
 std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitExpr(const ExprNode* node) {
-    auto value = node->getValue()->accept(this);
-    
-    // 如果表达式的值是一个 PrintExprASTImpl，直接返回它
-    if (auto* printExpr = dynamic_cast<matrix::PrintExprASTImpl*>(value.get())) {
-        return value;
-    }
-    
-    // 如果是 print 函数调用，包装它
-    if (auto* callExpr = dynamic_cast<matrix::CallExprAST*>(value.get())) {
-        if (callExpr->getCallee() == "print") {
-            if (!callExpr->getArgs().empty()) {
-                return std::make_unique<matrix::PrintExprASTImpl>(
-                    std::unique_ptr<matrix::ExprAST>(callExpr->getArgs()[0]->clone())
-                );
-            }
-            return std::make_unique<matrix::PrintExprASTImpl>(
-                std::make_unique<matrix::StringExprASTImpl>("")
-            );
-        }
-    }
-    
-    // 直接返回表达式的值
+    auto value = node->value->accept(this);
     return value;
 }
 
 std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitList(const ListNode* node) {
     std::vector<std::unique_ptr<matrix::ExprAST>> elements;
-    for (const auto& element : node->getElements()) {
-        if (auto expr = element->accept(this)) {
-            elements.push_back(std::move(expr));
+    for (const auto& element : node->elements) {
+        if (element) {
+            elements.push_back(element->accept(this));
         }
     }
     return std::make_unique<matrix::ArrayExprASTImpl>(std::move(elements));
 }
 
 std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitCall(const CallNode* node) {
-    const std::string& funcName = node->getFunc();
-    std::vector<std::unique_ptr<matrix::ExprAST>> args;
+    const std::string& funcName = node->callee;
     
-    for (const auto& arg : node->getArgs()) {
-        args.push_back(arg->accept(this));
+    std::vector<std::unique_ptr<matrix::ExprAST>> args;
+    for (const auto& arg : node->arguments) {
+        if (arg) {
+            args.push_back(arg->accept(this));
+        }
     }
     
-    // 检查是否是属性访问（例如 tensor.create）
-    size_t dotPos = funcName.find('.');
-    if (dotPos != std::string::npos) {
-        std::string objName = funcName.substr(0, dotPos);
-        std::string methodName = funcName.substr(dotPos + 1);
-        
-        // 处理 tensor 相关的方法调用
-        if (objName == "tensor") {
-            if (methodName == "matmul" && args.size() == 2) {
-                return std::make_unique<matrix::MatmulExprASTImpl>(
-                    std::move(args[0]),
-                    std::move(args[1])
-                );
-            } else if (methodName == "random" && args.size() == 2) {
-                return std::make_unique<matrix::TensorRandomExprASTImpl>(
-                    std::move(args[0]),
-                    std::move(args[1])
-                );
-            } else if (methodName == "create" && args.size() == 3) {
-                // 前两个参数是维度，第三个参数是初始化列表
-                return std::make_unique<matrix::TensorCreateExprASTImpl>(
-                    std::move(args[0]),
-                    std::move(args[1]),
-                    std::move(args[2])
-                );
-            }
+    if (funcName == "tensor.random") {
+        if (args.size() != 2) {
+            std::cerr << "Error: tensor.random requires exactly 2 arguments" << std::endl;
+            return nullptr;
         }
-    } else if (funcName == "matmul") {
-        if (args.size() == 2) {
-            return std::make_unique<matrix::MatmulExprASTImpl>(
-                std::move(args[0]),
-                std::move(args[1])
+        return std::make_unique<matrix::TensorRandomExprASTImpl>(
+            std::move(args[0]),
+            std::move(args[1])
+        );
+    } else if (funcName == "tensor.create") {
+        if (args.size() != 3) {
+            std::cerr << "Error: tensor.create requires exactly 3 arguments" << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<matrix::TensorCreateExprASTImpl>(
+            std::move(args[0]),
+            std::move(args[1]),
+            std::move(args[2])
+        );
+    } else if (funcName == "tensor.matmul") {
+        if (args.size() != 2) {
+            std::cerr << "Error: tensor.matmul requires exactly 2 arguments" << std::endl;
+            return nullptr;
+        }
+        return std::make_unique<matrix::MatmulExprASTImpl>(
+            std::move(args[0]),
+            std::move(args[1])
+        );
+    } else if (funcName == "print") {
+        if (args.empty()) {
+            return std::make_unique<matrix::PrintExprASTImpl>(
+                std::make_unique<matrix::StringExprASTImpl>("")
             );
         }
-    } else if (funcName == "print") {
-        if (!args.empty()) {
-            // 如果参数已经是一个 PrintExprASTImpl，直接返回它
-            if (auto* printExpr = dynamic_cast<matrix::PrintExprASTImpl*>(args[0].get())) {
-                return std::move(args[0]);
-            }
-            return std::make_unique<matrix::PrintExprASTImpl>(std::move(args[0]));
-        }
-        return std::make_unique<matrix::PrintExprASTImpl>(
-            std::make_unique<matrix::StringExprASTImpl>("")
-        );
+        return std::make_unique<matrix::PrintExprASTImpl>(std::move(args[0]));
+    } else if (funcName == "time.now") {
+        return std::make_unique<matrix::TimeCallExprAST>();
     }
     
-    // 普通函数调用
-    return std::make_unique<matrix::CallExprASTImpl>(
-        funcName,
-        std::move(args)
-    );
+    return std::make_unique<matrix::CallExprASTImpl>(funcName, std::move(args));
 }
 
 std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitModule(const ModuleNode* node) {
-    std::vector<std::unique_ptr<matrix::ExprAST>> body;
-    
-    // 处理所有语句
-    for (const auto& stmt : node->getBody()) {
-        if (auto expr = stmt->accept(this)) {
-            body.push_back(std::move(expr));
+    std::vector<std::unique_ptr<matrix::ExprAST>> statements;
+    for (const auto& stmt : node->body) {
+        if (stmt) {
+            statements.push_back(stmt->accept(this));
         }
     }
-    
-    return std::make_unique<matrix::ModuleASTImpl>(std::move(body));
+    return std::make_unique<matrix::ModuleASTImpl>(std::move(statements));
 }
 
 std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitFunctionDef(const FunctionDefNode* node) {
     std::vector<std::unique_ptr<matrix::ExprAST>> body;
-    
-    // 处理函数体中的所有语句
-    for (const auto& stmt : node->getBody()) {
-        if (auto expr = stmt->accept(this)) {
-            body.push_back(std::move(expr));
+    for (const auto& stmt : node->body) {
+        if (stmt) {
+            body.push_back(stmt->accept(this));
         }
     }
     
     return std::make_unique<matrix::FunctionASTImpl>(
-        node->getName(),
-        node->getArgs(),
+        node->name,
+        node->args,
         std::move(body)
     );
 }
 
 std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitFor(const ForNode* node) {
-    auto target = std::make_unique<matrix::VariableExprASTImpl>(node->getTarget());
-    auto iter = node->getIter()->accept(this);
+    auto target = std::make_unique<matrix::VariableExprASTImpl>(node->target);
+    auto iter = node->iter->accept(this);
+    
     std::vector<std::unique_ptr<matrix::ExprAST>> body;
     
-    // 处理循环体中的所有语句
-    for (const auto& stmt : node->getBody()) {
-        if (auto expr = stmt->accept(this)) {
-            body.push_back(std::move(expr));
+    for (const auto& stmt : node->body) {
+        if (stmt) {
+            body.push_back(stmt->accept(this));
         }
     }
     
@@ -189,13 +153,57 @@ std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitFor(const ForNode* node)
 }
 
 std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitReturn(const ReturnNode* node) {
-    auto value = node->getValue()->accept(this);
+    auto value = node->value->accept(this);
     return std::make_unique<matrix::ReturnASTImpl>(std::move(value));
 }
 
 std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitString(const StringNode* node) {
-    return std::make_unique<matrix::StringExprASTImpl>(node->getValue());
+    return std::make_unique<matrix::StringExprASTImpl>(node->value);
+}
+
+std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitAttribute(const AttributeNode* node) {
+    auto value = node->value->accept(this);
+    const std::string& attr = node->attr;
+    return std::make_unique<matrix::AttributeExprASTImpl>(std::move(value), attr);
+}
+
+std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitMethodCall(const MethodCallNode* node) {
+    auto value = node->object->accept(this);
+    const std::string& method = node->method;
+    
+    std::vector<std::unique_ptr<matrix::ExprAST>> args;
+    for (const auto& arg : node->arguments) {
+        if (arg) {
+            args.push_back(arg->accept(this));
+        }
+    }
+    
+    if (method == "to") {
+        if (args.size() != 1) {
+            std::cerr << "Error: to() method requires exactly 1 argument" << std::endl;
+            return nullptr;
+        }
+        
+        if (auto* stringExpr = dynamic_cast<matrix::StringExprASTImpl*>(args[0].get())) {
+            return std::make_unique<matrix::DeviceTransferExprAST>(
+                std::move(value),
+                stringExpr->getValue()
+            );
+        } else {
+            std::cerr << "Error: device argument must be a string" << std::endl;
+            return nullptr;
+        }
+    }
+    
+    return std::make_unique<matrix::CallExprASTImpl>(
+        method,
+        std::move(args)
+    );
+}
+
+std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitImport(const ImportNode* node) {
+    return std::make_unique<matrix::ImportASTImpl>(node->name);
 }
 
 } // namespace python
-} // namespace boas 
+} // namespace boas

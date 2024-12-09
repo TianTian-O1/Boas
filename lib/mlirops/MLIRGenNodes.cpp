@@ -437,4 +437,67 @@ mlir::Value MLIRGen::generateMLIRForAssignment(const AssignmentExprAST* expr) {
     return value;
 }
 
+mlir::Value MLIRGen::generateMLIRForNode(const ExprAST* node) {
+    if (!node) return nullptr;
+    
+    switch (node->getKind()) {
+        // ... existing cases ...
+        case ExprAST::Kind::DeviceTransfer: {
+            auto* deviceTransfer = llvm::cast<DeviceTransferExprAST>(node);
+            auto tensor = generateMLIRForNode(deviceTransfer->getTensor());
+            if (!tensor) return nullptr;
+            
+            // 获取设备名称
+            const std::string& device = deviceTransfer->getDevice();
+            
+            // 创建设备转移操作
+            auto loc = builder->getUnknownLoc();
+            
+            // 如果是 GPU 设备
+            if (device == "gpu") {
+                // 创建 GPU 内存分配
+                auto gpuMemType = mlir::MemRefType::get(
+                    llvm::cast<mlir::MemRefType>(tensor.getType()).getShape(),
+                    builder->getF64Type(),
+                    {}, // No layout
+                    1   // GPU memory space
+                );
+                
+                // 分配 GPU 内存
+                auto gpuAlloc = builder->create<mlir::memref::AllocOp>(loc, gpuMemType);
+                
+                // 创建内存拷贝操作（从 CPU 到 GPU）
+                builder->create<mlir::memref::CopyOp>(loc, tensor, gpuAlloc);
+                
+                return gpuAlloc;
+            }
+            
+            // 如果是其他设备，暂时返回原始张量
+            return tensor;
+        }
+        case ExprAST::Kind::Attribute: {
+            auto* attr = llvm::cast<AttributeExprAST>(node);
+            auto value = generateMLIRForNode(attr->getValue());
+            if (!value) return nullptr;
+            
+            // 获取属性名称
+            const std::string& attrName = attr->getAttr();
+            
+            // 创建属性访问操作
+            auto loc = builder->getUnknownLoc();
+            
+            // 如果是 "to" 方法，返回原始值（实际的设备转移在 DeviceTransfer 节点中处理）
+            if (attrName == "to") {
+                return value;
+            }
+            
+            // 其他属性访问暂时返回原始值
+            return value;
+        }
+        // ... existing code ...
+    }
+    
+    return nullptr;
+}
+
 } // namespace matrix

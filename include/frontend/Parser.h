@@ -73,6 +73,7 @@ public:
     std::unique_ptr<ExprAST> parseReturnExpr();
     std::unique_ptr<ExprAST> parseModuleExpr();
     std::unique_ptr<ExprAST> parseArrayExpr();
+    std::unique_ptr<ExprAST> parseDeviceTransferExpr(std::unique_ptr<ExprAST> tensor);
 };
 
 } // namespace matrix

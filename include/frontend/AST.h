@@ -55,7 +55,8 @@ public:
         Dict,
         Subscript,
         Attribute,
-        Range
+        Range,
+        DeviceTransfer
     };
     
     virtual Kind getKind() const = 0;
@@ -76,7 +77,7 @@ protected:
 class TimeCallExprAST : public ExprAST {
     std::string func_name;  // 函数名（如 "now"）
 public:
-    TimeCallExprAST(const std::string& name) : func_name(name) {}
+    TimeCallExprAST(const std::string& name = "now") : func_name(name) {}
     
     const std::string& getFuncName() const { return func_name; }
     
@@ -89,6 +90,10 @@ public:
     
     static bool classof(const ExprAST* expr) {
         return expr->getKind() == Kind::TimeCall;
+    }
+
+    ExprAST* clone() const override {
+        return new TimeCallExprAST(func_name);
     }
 };
 
@@ -123,18 +128,21 @@ public:
 class TensorExprAST : public ExprAST {
     std::vector<std::unique_ptr<ExprAST>> elements;
     std::vector<int64_t> dimensions;
+    std::string device;
 public:
     TensorExprAST(std::vector<std::unique_ptr<ExprAST>> elements)
-        : elements(std::move(elements)) {
+        : elements(std::move(elements)), device("cpu") {
         dimensions = {2, 2};
     }
     
     TensorExprAST(ArrayExprAST& array)
-        : elements(array.takeElements()) {
+        : elements(array.takeElements()), device("cpu") {
         dimensions = {2, 2};
     }
     
     const std::vector<int64_t>& getDimensions() const { return dimensions; }
+    const std::string& getDevice() const { return device; }
+    void setDevice(const std::string& dev) { device = dev; }
     
     void dump(int indent = 0) const override {
         printIndent(indent);
@@ -143,7 +151,7 @@ public:
             if (i > 0) std::cout << ", ";
             elements[i]->dump(0);
         }
-        std::cout << ")";
+        std::cout << ") on " << device;
     }
 
     const std::vector<std::unique_ptr<ExprAST>>& getElements() const { return elements; }
@@ -337,6 +345,14 @@ public:
     const std::string& getModuleName() const { return module_name; }
 
     Kind getKind() const override { return Kind::Import; }
+    
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::Import;
+    }
+    
+    ExprAST* clone() const override {
+        return new ImportAST(module_name, func_name);
+    }
 };
 
 // 函数调用
@@ -651,6 +667,71 @@ public:
     }
     
     Kind getKind() const override { return Kind::Str; }
+};
+
+// 新增：设备转移表达式
+class DeviceTransferExprAST : public ExprAST {
+    std::unique_ptr<ExprAST> tensor;
+    std::string device;
+public:
+    DeviceTransferExprAST(std::unique_ptr<ExprAST> tensor,
+                         std::string device)
+        : tensor(std::move(tensor)), device(std::move(device)) {}
+    
+    const ExprAST* getTensor() const { return tensor.get(); }
+    const std::string& getDevice() const { return device; }
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        std::cout << "DeviceTransfer(";
+        tensor->dump(0);
+        std::cout << ", \"" << device << "\")";
+    }
+    
+    Kind getKind() const override { return Kind::DeviceTransfer; }
+    
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::DeviceTransfer;
+    }
+    
+    ExprAST* clone() const override {
+        return new DeviceTransferExprAST(
+            std::unique_ptr<ExprAST>(tensor->clone()),
+            device
+        );
+    }
+};
+
+// 新增：属性访问表达式
+class AttributeExprAST : public ExprAST {
+    std::unique_ptr<ExprAST> value;
+    std::string attr;
+public:
+    AttributeExprAST(std::unique_ptr<ExprAST> value,
+                    std::string attr)
+        : value(std::move(value)), attr(std::move(attr)) {}
+    
+    const ExprAST* getValue() const { return value.get(); }
+    const std::string& getAttr() const { return attr; }
+    
+    void dump(int indent = 0) const override {
+        printIndent(indent);
+        value->dump(0);
+        std::cout << "." << attr;
+    }
+    
+    Kind getKind() const override { return Kind::Attribute; }
+    
+    static bool classof(const ExprAST* expr) {
+        return expr->getKind() == Kind::Attribute;
+    }
+    
+    ExprAST* clone() const override {
+        return new AttributeExprAST(
+            std::unique_ptr<ExprAST>(value->clone()),
+            attr
+        );
+    }
 };
 
 } // namespace matrix

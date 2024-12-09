@@ -19,6 +19,9 @@ class ListNode;
 class ForNode;
 class ReturnNode;
 class StringNode;
+class AttributeNode;
+class MethodCallNode;
+class ImportNode;
 
 // 访问器基类
 class PythonASTVisitor {
@@ -37,6 +40,9 @@ public:
     virtual std::unique_ptr<matrix::ExprAST> visitFor(const ForNode* node) = 0;
     virtual std::unique_ptr<matrix::ExprAST> visitReturn(const ReturnNode* node) = 0;
     virtual std::unique_ptr<matrix::ExprAST> visitString(const StringNode* node) = 0;
+    virtual std::unique_ptr<matrix::ExprAST> visitAttribute(const AttributeNode* node) = 0;
+    virtual std::unique_ptr<matrix::ExprAST> visitMethodCall(const MethodCallNode* node) = 0;
+    virtual std::unique_ptr<matrix::ExprAST> visitImport(const ImportNode* node) = 0;
 };
 
 // Boas AST转换器
@@ -54,6 +60,9 @@ public:
     std::unique_ptr<matrix::ExprAST> visitFor(const ForNode* node) override;
     std::unique_ptr<matrix::ExprAST> visitReturn(const ReturnNode* node) override;
     std::unique_ptr<matrix::ExprAST> visitString(const StringNode* node) override;
+    std::unique_ptr<matrix::ExprAST> visitAttribute(const AttributeNode* node) override;
+    std::unique_ptr<matrix::ExprAST> visitMethodCall(const MethodCallNode* node) override;
+    std::unique_ptr<matrix::ExprAST> visitImport(const ImportNode* node) override;
 };
 
 } // namespace python

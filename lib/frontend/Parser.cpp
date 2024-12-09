@@ -67,6 +67,37 @@ std::unique_ptr<ExprAST> Parser::parseIdentifierExpr() {
     std::string IdName = current_token_.value;
     getNextToken(); // eat identifier
     
+    if (current_token_.kind == tok_dot) {  // 方法调用，如 tensor.to()
+        getNextToken(); // eat .
+        std::string methodName = current_token_.value;
+        getNextToken(); // eat method name
+        
+        if (methodName == "to") {
+            if (current_token_.kind != tok_left_paren) {
+                return LogError("Expected '(' after 'to'");
+            }
+            getNextToken(); // eat (
+            
+            // 解析设备名称
+            if (current_token_.kind != tok_string) {
+                return LogError("Expected device name string in to()");
+            }
+            std::string deviceName = current_token_.value;
+            getNextToken(); // eat device name
+            
+            if (current_token_.kind != tok_right_paren) {
+                return LogError("Expected ')' after device name");
+            }
+            getNextToken(); // eat )
+            
+            return std::make_unique<DeviceTransferExprAST>(
+                std::make_unique<VariableExprASTImpl>(IdName),
+                deviceName
+            );
+        }
+        // 其他方法调用的处理...
+    }
+    
     if (current_token_.kind != tok_left_paren) { // Simple variable ref
         return std::make_unique<VariableExprASTImpl>(IdName);
     }
@@ -239,6 +270,36 @@ std::unique_ptr<ExprAST> Parser::parseArrayExpr() {
     getNextToken(); // eat ]
 
     return std::make_unique<ArrayExprASTImpl>(std::move(elements));
+}
+
+std::unique_ptr<ExprAST> Parser::parseDeviceTransferExpr(std::unique_ptr<ExprAST> tensor) {
+    if (current_token_.kind != tok_dot) {
+        return LogError("Expected '.' before 'to'");
+    }
+    getNextToken(); // eat .
+    
+    if (current_token_.value != "to") {
+        return LogError("Expected 'to' method call");
+    }
+    getNextToken(); // eat 'to'
+    
+    if (current_token_.kind != tok_left_paren) {
+        return LogError("Expected '(' after 'to'");
+    }
+    getNextToken(); // eat (
+    
+    if (current_token_.kind != tok_string) {
+        return LogError("Expected device name string in to()");
+    }
+    std::string deviceName = current_token_.value;
+    getNextToken(); // eat device name
+    
+    if (current_token_.kind != tok_right_paren) {
+        return LogError("Expected ')' after device name");
+    }
+    getNextToken(); // eat )
+    
+    return std::make_unique<DeviceTransferExprAST>(std::move(tensor), deviceName);
 }
 
 } // namespace matrix

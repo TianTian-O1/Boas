@@ -60,6 +60,32 @@ Token Lexer::getNextToken() {
         return Token{tok_newline, "\n"};
     }
     
+    if (c == '"' || c == '\'') {
+        char quote = c;
+        current_++;
+        std::string str;
+        while (current_ < input_.length() && input_[current_] != quote) {
+            if (input_[current_] == '\\') {
+                current_++;
+                if (current_ < input_.length()) {
+                    switch (input_[current_]) {
+                        case 'n': str += '\n'; break;
+                        case 't': str += '\t'; break;
+                        case 'r': str += '\r'; break;
+                        default: str += input_[current_]; break;
+                    }
+                }
+            } else {
+                str += input_[current_];
+            }
+            current_++;
+        }
+        if (current_ < input_.length()) {
+            current_++;
+        }
+        return createToken(tok_string, str);
+    }
+    
     if (std::isalpha(input_[current_])) {
         std::string identifier = readIdentifier();
         
@@ -75,7 +101,9 @@ Token Lexer::getNextToken() {
             {"return", tok_return},
             {"linalg", tok_linalg},
             {"time", tok_time},
-            {"now", tok_now}
+            {"now", tok_now},
+            {"device", tok_device},
+            {"to", tok_to}
         };
         
         auto it = keywords.find(identifier);
@@ -137,7 +165,9 @@ std::string tokenKindToString(TokenKind kind) {
         {tok_right_brace, "RBRACE"},
         {tok_time, "TIME"},
         {tok_now, "NOW"},
-        {tok_minus, "MINUS"}
+        {tok_minus, "MINUS"},
+        {tok_device, "DEVICE"},
+        {tok_to, "TO"}
     };
     
     auto it = tokenNames.find(kind);

@@ -36,7 +36,10 @@ enum TokenKind {
     tok_right_brace = -26,  
     tok_time = -27,     // For 'time' keyword
     tok_now = -28,      // For 'now' function
-    tok_minus = -29     // For subtraction operation '-'
+    tok_minus = -29,     // For subtraction operation '-'
+    tok_string = -30,   // 新增：字符串字面量
+    tok_device = -31,   // 新增：device 关键字
+    tok_to = -32        // 新增：to 方法
 };
 
 struct Token {

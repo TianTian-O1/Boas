@@ -26,6 +26,9 @@ private:
     std::unique_ptr<ForNode> buildFor(PyObject* node);
     std::unique_ptr<ReturnNode> buildReturn(PyObject* node);
     std::unique_ptr<PythonASTNode> buildConstant(PyObject* node);
+    std::unique_ptr<AttributeNode> buildAttribute(PyObject* node);
+    std::unique_ptr<MethodCallNode> buildMethodCall(PyObject* node);
+    std::unique_ptr<PythonASTNode> buildImport(PyObject* node);
 
 public:
     PythonASTBuilder();
