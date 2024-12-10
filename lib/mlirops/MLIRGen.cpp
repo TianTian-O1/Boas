@@ -212,8 +212,6 @@ mlir::Value MLIRGen::generateMLIRForNode(const ExprAST* node) {
                 }
                 return nullptr;
             }
-            case ExprAST::DeviceTransfer:
-                return generateMLIRForDeviceTransfer(static_cast<const DeviceTransferExprAST*>(node));
             default:
                 std::cerr << "Error: Unhandled node kind: " << node->getKind() << "\n";
                 return nullptr;
