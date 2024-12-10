@@ -218,13 +218,18 @@ std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitMethodCall(const MethodC
             return nullptr;
         }
         
-        if (auto* stringExpr = dynamic_cast<matrix::StringExprASTImpl*>(args[0].get())) {
+        if (auto* varExpr = dynamic_cast<matrix::VariableExprAST*>(args[0].get())) {
+            return std::make_unique<matrix::DeviceTransferExprAST>(
+                std::move(value),
+                varExpr->getName()
+            );
+        } else if (auto* stringExpr = dynamic_cast<matrix::StringExprASTImpl*>(args[0].get())) {
             return std::make_unique<matrix::DeviceTransferExprAST>(
                 std::move(value),
                 stringExpr->getValue()
             );
         } else {
-            std::cerr << "Error: device argument must be a string" << std::endl;
+            std::cerr << "Error: device argument must be a string or variable reference" << std::endl;
             return nullptr;
         }
     }
