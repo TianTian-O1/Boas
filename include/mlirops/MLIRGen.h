@@ -53,6 +53,7 @@ private:
     mlir::Value generateMLIRForCall(const CallExprAST* expr);
     mlir::Value generateMLIRForArray(const ArrayExprAST* expr);
     mlir::Value generateMLIRForPrint(const PrintExprAST* print);
+    mlir::Value generateMLIRForDeviceTransfer(const DeviceTransferExprAST* expr);
 
     // Tensor operations - defined in MLIRGenTensor.cpp
     mlir::Value generateMLIRForTensor(const TensorExprAST* expr);
