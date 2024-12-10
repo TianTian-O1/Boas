@@ -177,6 +177,40 @@ std::unique_ptr<matrix::ExprAST> BoasASTConverter::visitMethodCall(const MethodC
             args.push_back(arg->accept(this));
         }
     }
+
+    if (auto* varExpr = dynamic_cast<matrix::VariableExprAST*>(value.get())) {
+        if (varExpr->getName() == "tensor") {
+            if (method == "random") {
+                if (args.size() != 2) {
+                    std::cerr << "Error: tensor.random requires exactly 2 arguments" << std::endl;
+                    return nullptr;
+                }
+                return std::make_unique<matrix::TensorRandomExprASTImpl>(
+                    std::move(args[0]),
+                    std::move(args[1])
+                );
+            } else if (method == "create") {
+                if (args.size() != 3) {
+                    std::cerr << "Error: tensor.create requires exactly 3 arguments" << std::endl;
+                    return nullptr;
+                }
+                return std::make_unique<matrix::TensorCreateExprASTImpl>(
+                    std::move(args[0]),
+                    std::move(args[1]),
+                    std::move(args[2])
+                );
+            } else if (method == "matmul") {
+                if (args.size() != 2) {
+                    std::cerr << "Error: tensor.matmul requires exactly 2 arguments" << std::endl;
+                    return nullptr;
+                }
+                return std::make_unique<matrix::MatmulExprASTImpl>(
+                    std::move(args[0]),
+                    std::move(args[1])
+                );
+            }
+        }
+    }
     
     if (method == "to") {
         if (args.size() != 1) {
