@@ -9,12 +9,15 @@ build/
 *.ll
 *.bc
 *.s
+*.mlir
 
-# Temp
+# Temp files
 temp/
 tmp/
 *.tmp
 *.log
+temp.mlir
+fusion_result.json
 
 # IDE
 .vscode/
@@ -27,6 +30,38 @@ tmp/
 __pycache__/
 *.pyc
 
+# Git and push scripts
+*push*.sh
+*git*.sh
+configure_*.sh
+setup_*.sh
+quick_*.sh
+
+# Status and guide files
+*STATUS*.md
+*GUIDE*.md
+*INSTRUCTIONS*.md
+*SUMMARY*.md
+*REPORT*.md
+FINAL_*.md
+PROJECT_*.md
+MANUAL_*.md
+
+# Test results and visualizations
+benchmark/results/
+tools/visualization/*.png
+results/
+
+# Package files
+package.json
+*.json
+
 # Release
 boas-v*/
 *.tar.gz
+
+# Documentation cleanup
+docs/reports/
+docs/*CLEANUP*
+docs/*FINAL*
+docs/*PROJECT*
