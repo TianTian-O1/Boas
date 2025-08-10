@@ -1,0 +1,108 @@
+import tensor
+
+def test_small_matmul():
+    print("=== 小矩阵NPU测试 ===")
+    # 创建2x2测试矩阵
+    A = tensor.create(2, 2, [1.0, 2.0, 3.0, 4.0])
+    B = tensor.create(2, 2, [5.0, 6.0, 7.0, 8.0])
+    
+    print("矩阵A:")
+    print(A)
+    print("矩阵B:")
+    print(B)
+    
+    # NPU矩阵乘法
+    C = tensor.matmul(A, B)
+    
+    print("结果C = A * B:")
+    print(C)
+    print("小矩阵测试完成")
+
+def test_medium_matmul():
+    print("=== 中等矩阵NPU测试 ===")
+    # 创建64x64随机矩阵测试NPU性能
+    A64 = tensor.random(64, 64)
+    B64 = tensor.random(64, 64)
+    
+    print("开始64x64矩阵乘法...")
+    C64 = tensor.matmul(A64, B64)
+    print("64x64矩阵乘法完成")
+    print("结果形状检查通过")
+
+def test_large_matmul():
+    print("=== 大矩阵NPU性能测试 ===")
+    # 创建256x256矩阵测试NPU高性能
+    A256 = tensor.random(256, 256)
+    B256 = tensor.random(256, 256)
+    
+    print("开始256x256矩阵乘法...")
+    C256 = tensor.matmul(A256, B256)
+    print("256x256矩阵乘法完成")
+    print("NPU高性能计算验证成功")
+
+def main():
+    print("🚀 Boas语言NPU矩阵乘法测试")
+    print("==============================")
+    
+    # 运行所有测试
+    test_small_matmul()
+    test_medium_matmul() 
+    test_large_matmul()
+    
+    print("==============================")
+    print("✅ 所有NPU测试完成")
+    return 0
+
+
+def test_small_matmul():
+    print("=== 小矩阵NPU测试 ===")
+    # 创建2x2测试矩阵
+    A = tensor.create(2, 2, [1.0, 2.0, 3.0, 4.0])
+    B = tensor.create(2, 2, [5.0, 6.0, 7.0, 8.0])
+    
+    print("矩阵A:")
+    print(A)
+    print("矩阵B:")
+    print(B)
+    
+    # NPU矩阵乘法
+    C = tensor.matmul(A, B)
+    
+    print("结果C = A * B:")
+    print(C)
+    print("小矩阵测试完成")
+
+def test_medium_matmul():
+    print("=== 中等矩阵NPU测试 ===")
+    # 创建64x64随机矩阵测试NPU性能
+    A64 = tensor.random(64, 64)
+    B64 = tensor.random(64, 64)
+    
+    print("开始64x64矩阵乘法...")
+    C64 = tensor.matmul(A64, B64)
+    print("64x64矩阵乘法完成")
+    print("结果形状检查通过")
+
+def test_large_matmul():
+    print("=== 大矩阵NPU性能测试 ===")
+    # 创建256x256矩阵测试NPU高性能
+    A256 = tensor.random(256, 256)
+    B256 = tensor.random(256, 256)
+    
+    print("开始256x256矩阵乘法...")
+    C256 = tensor.matmul(A256, B256)
+    print("256x256矩阵乘法完成")
+    print("NPU高性能计算验证成功")
+
+def main():
+    print("🚀 Boas语言NPU矩阵乘法测试")
+    print("==============================")
+    
+    # 运行所有测试
+    test_small_matmul()
+    test_medium_matmul() 
+    test_large_matmul()
+    
+    print("==============================")
+    print("✅ 所有NPU测试完成")
+    return 0

@@ -1,0 +1,14 @@
+# 简单的NPU矩阵乘法测试
+def main():
+    # 2x2矩阵乘法
+    var A = [[1.0, 2.0], [3.0, 4.0]]
+    var B = [[5.0, 6.0], [7.0, 8.0]]
+    var C = matmul(A, B)
+    return 0
+
+def main():
+    # 2x2矩阵乘法
+    var A = [[1.0, 2.0], [3.0, 4.0]]
+    var B = [[5.0, 6.0], [7.0, 8.0]]
+    var C = matmul(A, B)
+    return 0

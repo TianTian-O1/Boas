@@ -1,0 +1,23 @@
+// 简单的Boas NPU矩阵乘法测试
+// 测试语法和NPU backend集成
+
+import tensor
+
+def simple_test():
+    // 创建小矩阵进行快速测试
+    var A = tensor.random(128, 128)
+    var B = tensor.random(128, 128)
+    
+    // 执行矩阵乘法，应该自动检测并使用NPU
+    var C = tensor.matmul(A, B)
+    
+    print("Matrix multiplication completed")
+    return C
+
+def main():
+    print("=== Boas NPU Matrix Multiplication Test ===")
+    
+    var result = simple_test()
+    
+    print("Test completed successfully!")
+    return 0

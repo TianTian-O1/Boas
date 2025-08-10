@@ -1,0 +1,13 @@
+import tensor
+
+def main():
+    # Define matrices with correct shapes and elements
+    A = tensor([[3]])  # 1x2 matrix
+    B = tensor([
+        [3, 3],
+        [3, 3]
+    ])  # 2x2 matrix
+
+    # Perform the matrix multiplication
+    C = tensor.matmul(A, B)
+    print(C)

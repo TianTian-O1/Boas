@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./test-python-parser)",
+      "Bash(./matrix-compiler:*)",
+      "Bash(export:*)",
+      "Bash(grep:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(true)",
+      "Bash(tree:*)",
+      "Bash(rmdir:*)",
+      "Bash(cmake:*)",
+      "Bash(./test-python-parser:*)",
+      "Bash(find:*)",
+      "Bash(python3:*)",
+      "Bash(./test-full-pipeline:*)",
+      "Bash(cd:*)",
+      "Bash(./quick_build_and_test.sh:*)",
+      "Bash(./build/matrix-compiler:*)",
+      "Bash(LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu:$LD_LIBRARY_PATH ./build/matrix-compiler test_matmul.bs -o test_matmul)",
+      "Bash(LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu:$LD_LIBRARY_PATH ./build/matrix-compiler --build test_matmul.bs test_matmul)"
+    ],
+    "deny": []
+  }
+}

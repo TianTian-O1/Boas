@@ -1,0 +1,161 @@
+Initializing MLIRGen...
+MLIRGen initialized successfully with all required dialects
+=== Starting MLIR Generation ===
+Number of AST nodes: 2
+[DEBUG] generateMLIRForNode kind: 5
+[DEBUG] Processing import: tensor
+[DEBUG] generateMLIRForNode kind: 4
+[DEBUG] Generating MLIR for function: main
+[DEBUG] Processing function body with 25 statements
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor
+[DEBUG] Creating tensor of size 64x64
+[DEBUG] Generating random values
+[DEBUG] Tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor
+[DEBUG] Creating tensor of size 64x64
+[DEBUG] Generating random values
+[DEBUG] Tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 12
+[DEBUG] Generating matrix multiplication
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor
+[DEBUG] Creating tensor of size 128x128
+[DEBUG] Generating random values
+[DEBUG] Tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor
+[DEBUG] Creating tensor of size 128x128
+[DEBUG] Generating random values
+[DEBUG] Tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 12
+[DEBUG] Generating matrix multiplication
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor
+[DEBUG] Creating tensor of size 256x256
+[DEBUG] Generating random values
+[DEBUG] Tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor
+[DEBUG] Creating tensor of size 256x256
+[DEBUG] Generating random values
+[DEBUG] Tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 12
+[DEBUG] Generating matrix multiplication
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor
+[DEBUG] Creating tensor of size 512x512
+[DEBUG] Generating random values
+[DEBUG] Tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor
+[DEBUG] Creating tensor of size 512x512
+[DEBUG] Generating random values
+[DEBUG] Tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 12
+[DEBUG] Generating matrix multiplication
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor
+[DEBUG] Creating tensor of size 1024x1024
+[DEBUG] Generating random values
+[DEBUG] Tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 13
+[DEBUG] Generating random tensor
+[DEBUG] Creating tensor of size 1024x1024
+[DEBUG] Generating random values
+[DEBUG] Tensor generation complete
+[DEBUG] Processing statement kind: 10
+[DEBUG] generateMLIRForNode kind: 10
+[DEBUG] generateMLIRForNode kind: 12
+[DEBUG] Generating matrix multiplication
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] generateMLIRForNode kind: 1
+[DEBUG] Processing statement kind: 9
+[DEBUG] generateMLIRForNode kind: 9
+[DEBUG] generateMLIRForNode kind: 0
+ld: warning: dylib (/Users/mac/llvm-install/lib/libmlir_float16_utils.dylib) was built for newer macOS version (12.7) than being linked (12.0)ld: warning: dylib (/Users/mac/llvm-install/lib/libmlir_c_runner_utils.dylib) was built for newer macOS version (12.7) than being linked (12.0)
+ld: warning: dylib (/Users/mac/llvm-install/lib/libmlir_runner_utils.dylib) was built for newer macOS version (12.7) than being linked (12.0)
+
+ld: warning: dylib (/Users/mac/vscode/Boas/build/lib/libmatrix-runtime.dylib) was built for newer macOS version (12.7) than being linked (12.0)
+        1.44 real         0.86 user         0.09 sys
+            19980288  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               32817  page reclaims
+                  15  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   9  voluntary context switches
+                1460  involuntary context switches
+            76307920  instructions retired
+            54497756  cycles elapsed
+             1294336  peak memory footprint

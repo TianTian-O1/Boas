@@ -1,0 +1,134 @@
+Analysis of sampling matrix-compiler (pid 54754) every 1 millisecond
+Process:         matrix-compiler [54754]
+Path:            /Users/USER/*/matrix-compiler
+Load Address:    0x105436000
+Identifier:      matrix-compiler
+Version:         0
+Code Type:       X86-64
+Platform:        macOS
+Parent Process:  bash [54486]
+
+Date/Time:       2024-11-23 14:30:05.901 +0800
+Launch Time:     2024-11-23 14:30:04.831 +0800
+OS Version:      macOS 12.7.6 (21H1320)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+----
+
+Call graph:
+    237 Thread_90489793   DispatchQueue_1: com.apple.main-thread  (serial)
+    + 237 start  (in dyld) + 462  [0x1093fb52e]
+    +   237 main  (in matrix-compiler) + 979  [0x10543cf23]
+    +     236 compileMLIR(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)  (in matrix-compiler) + 7738  [0x10543c1ca]
+    +     ! 236 system  (in libsystem_c.dylib) + 440  [0x7ff81e6eca56]
+    +     !   236 __wait4_nocancel  (in libsystem_kernel.dylib) + 10  [0x7ff81e773dde]
+    +     1 compileMLIR(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)  (in matrix-compiler) + 8000  [0x10543c2d0]
+    +       1 std::__1::basic_ifstream<char, std::__1::char_traits<char> >::~basic_ifstream()  (in matrix-compiler) + 32  [0x10543cae0]
+    +         1 std::__1::basic_ifstream<char, std::__1::char_traits<char> >::~basic_ifstream()  (in matrix-compiler) + 62  [0x10543e01e]
+    +           1 std::__1::basic_filebuf<char, std::__1::char_traits<char> >::~basic_filebuf()  (in libc++.1.dylib) + 29  [0x7ff81e71ba03]
+    +             1 std::__1::basic_filebuf<char, std::__1::char_traits<char> >::close()  (in libc++.1.dylib) + 28  [0x7ff81e71ba8e]
+    +               1 std::__1::basic_filebuf<char, std::__1::char_traits<char> >::sync()  (in libc++.1.dylib) + 450  [0x7ff81e71cab8]
+    +                 1 fseeko  (in libsystem_c.dylib) + 71  [0x7ff81e68a04d]
+    +                   1 _fseeko  (in libsystem_c.dylib) + 700  [0x7ff81e6a87f7]
+    +                     1 _sseek  (in libsystem_c.dylib) + 60  [0x7ff81e68a40f]
+    +                       1 __lseek  (in libsystem_kernel.dylib) + 10  [0x7ff81e76bdba]
+    237 Thread_90489795: llvm-worker-0
+    + 237 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
+    +   237 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
+    +     237 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x105f1b787]
+    +       237 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x105f19a46]
+    +         237 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
+    +           237 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
+    +             237 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
+    237 Thread_90489796: llvm-worker-1
+    + 237 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
+    +   237 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
+    +     237 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x105f1b787]
+    +       237 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x105f19a46]
+    +         237 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
+    +           237 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
+    +             237 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
+    237 Thread_90489797: llvm-worker-2
+    + 237 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
+    +   237 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
+    +     237 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x105f1b787]
+    +       237 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x105f19a46]
+    +         237 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
+    +           237 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
+    +             237 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
+    237 Thread_90489798: llvm-worker-3
+    + 237 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
+    +   237 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
+    +     237 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x105f1b787]
+    +       237 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x105f19a46]
+    +         237 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
+    +           237 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
+    +             237 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
+    237 Thread_90489799: llvm-worker-4
+      237 thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
+        237 _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
+          237 void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x105f1b787]
+            237 llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x105f19a46]
+              237 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
+                237 _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
+                  237 __psynch_cvwait  (in libsystem_kernel.dylib) + 10  [0x7ff81e76d3aa]
+
+Total number in stack (recursive counted multiple, when >=5):
+        5       __psynch_cvwait  (in libsystem_kernel.dylib) + 0  [0x7ff81e76d3a0]
+        5       _pthread_cond_wait  (in libsystem_pthread.dylib) + 1249  [0x7ff81e7a7a6f]
+        5       _pthread_start  (in libsystem_pthread.dylib) + 125  [0x7ff81e7a74e1]
+        5       llvm::StdThreadPool::processTasks(llvm::ThreadPoolTaskGroup*)  (in matrix-compiler) + 326  [0x105f19a46]
+        5       std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)  (in libc++.1.dylib) + 18  [0x7ff81e705d22]
+        5       thread_start  (in libsystem_pthread.dylib) + 15  [0x7ff81e7a2f6b]
+        5       void* llvm::thread::ThreadProxy<std::__1::tuple<llvm::StdThreadPool::grow(int)::$_0> >(void*)  (in matrix-compiler) + 135  [0x105f1b787]
+
+Sort by top of stack, same collapsed (when >= 5):
+        __psynch_cvwait  (in libsystem_kernel.dylib)        1185
+        __wait4_nocancel  (in libsystem_kernel.dylib)        236
+
+Binary Images:
+       0x105436000 -        0x105fe9ff3 +matrix-compiler (0) <E009607D-C65C-3AF6-92E4-FA0EE0843AE1> /Users/*/matrix-compiler
+       0x106bbc000 -        0x106c7ffd7 +libzstd.1.5.6.dylib (0) <812ACB6A-797F-37D4-95F9-F6C5542DBC6A> /usr/local/Cellar/zstd/1.5.6/lib/libzstd.1.5.6.dylib
+       0x1093f6000 -        0x10945f5a7  dyld (960) <EEA022BB-A6AB-3CD1-8AC1-54CE8CFD3333> /usr/lib/dyld
+    0x7ff81e4d7000 -     0x7ff81e4d8ff2  libsystem_blocks.dylib (79.1) <F44F0D7C-74FD-37FD-8267-8D3AEC7E7FB8> /usr/lib/system/libsystem_blocks.dylib
+    0x7ff81e4d9000 -     0x7ff81e514fff  libxpc.dylib (2236.140.2.705.3) <488BD58D-65C0-3341-B0CF-BE85D2257A91> /usr/lib/system/libxpc.dylib
+    0x7ff81e515000 -     0x7ff81e52dffe  libsystem_trace.dylib (1375.140.2) <707E7930-370D-393F-AEB0-949E48A6E19C> /usr/lib/system/libsystem_trace.dylib
+    0x7ff81e52e000 -     0x7ff81e5bffcf  libcorecrypto.dylib (1218.120.10.700.1) <C1A4432F-EFC4-3B17-AEA5-AB850E41D095> /usr/lib/system/libcorecrypto.dylib
+    0x7ff81e5c0000 -     0x7ff81e5ebfff  libsystem_malloc.dylib (374.120.1) <0FF21147-73CD-36DC-99E9-606217A75B77> /usr/lib/system/libsystem_malloc.dylib
+    0x7ff81e5ec000 -     0x7ff81e632ffb  libdispatch.dylib (1325.120.2) <37860D89-D337-3140-8973-AC199ACBC361> /usr/lib/system/libdispatch.dylib
+    0x7ff81e633000 -     0x7ff81e66dffa  libobjc.A.dylib (841.13.1) <B36A2B52-68A9-3E44-B927-71C24BE1272F> /usr/lib/libobjc.A.dylib
+    0x7ff81e66e000 -     0x7ff81e670ff7  libsystem_featureflags.dylib (56) <F6C3CB82-67A1-3333-9024-2AD5E046DEA3> /usr/lib/system/libsystem_featureflags.dylib
+    0x7ff81e671000 -     0x7ff81e6f9ff7  libsystem_c.dylib (1507.100.9.700.1) <202D7260-EA46-3956-A471-19C9BCF45274> /usr/lib/system/libsystem_c.dylib
+    0x7ff81e6fa000 -     0x7ff81e752ff7  libc++.1.dylib (1300.36) <A372724F-4642-369B-A01B-28E1F5E83FF1> /usr/lib/libc++.1.dylib
+    0x7ff81e753000 -     0x7ff81e768ff7  libc++abi.dylib (1300.36) <69AC868B-1157-364A-984A-5EF26973F661> /usr/lib/libc++abi.dylib
+    0x7ff81e769000 -     0x7ff81e7a0fff  libsystem_kernel.dylib (8020.240.18.709.2) <2FE67E94-4A5E-3506-9E02-502F7270F7EF> /usr/lib/system/libsystem_kernel.dylib
+    0x7ff81e7a1000 -     0x7ff81e7acff7  libsystem_pthread.dylib (486.100.11.701.1) <5A5F7316-85B7-315E-BAF3-76211EE65604> /usr/lib/system/libsystem_pthread.dylib
+    0x7ff81e7ad000 -     0x7ff81e7b8fff  libdyld.dylib (960) <F67D1175-91C0-3BFC-AE62-007C056DD60E> /usr/lib/system/libdyld.dylib
+    0x7ff81e7b9000 -     0x7ff81e7c2fef  libsystem_platform.dylib (273.100.5) <81A897B2-8752-3F99-833E-DA16FFA9FA58> /usr/lib/system/libsystem_platform.dylib
+    0x7ff81e7c3000 -     0x7ff81e7edfff  libsystem_info.dylib (554.120.2) <0186C233-DCBB-3CBD-8E63-B058CB9C9821> /usr/lib/system/libsystem_info.dylib
+    0x7ff820de4000 -     0x7ff820dedfff  libsystem_darwin.dylib (1507.100.9.700.1) <8CF63715-CA51-36D6-8792-291423B56350> /usr/lib/system/libsystem_darwin.dylib
+    0x7ff82120e000 -     0x7ff82121cfff  libsystem_notify.dylib (301) <5288F538-A9BB-384F-B273-8E84D54422D6> /usr/lib/system/libsystem_notify.dylib
+    0x7ff8236e1000 -     0x7ff8236f7ffb  libsystem_networkextension.dylib (1471.141.3.702.2) <81DE664D-5678-3AA6-8F3A-65ABB9D97138> /usr/lib/system/libsystem_networkextension.dylib
+    0x7ff823746000 -     0x7ff82375cff7  libsystem_asl.dylib (392.100.2) <80129583-979F-358F-A3F3-68B96C93859E> /usr/lib/system/libsystem_asl.dylib
+    0x7ff824f94000 -     0x7ff824f9bfff  libsystem_symptoms.dylib (1617.140.3) <A28339F4-2330-3CBB-A15D-C385023B45B9> /usr/lib/system/libsystem_symptoms.dylib
+    0x7ff827118000 -     0x7ff827134ffb  libsystem_containermanager.dylib (383.120.2.701.2) <06F2B48D-7263-34ED-AD86-E0AAF84A746F> /usr/lib/system/libsystem_containermanager.dylib
+    0x7ff827e6f000 -     0x7ff827e72ffb  libsystem_configuration.dylib (1163.140.3) <A84FF813-4212-3B75-A0D5-8C5E86E22348> /usr/lib/system/libsystem_configuration.dylib
+    0x7ff827e73000 -     0x7ff827e78ff3  libsystem_sandbox.dylib (1657.240.4.705.2) <E1E3912E-B6ED-3212-A0B4-A83A0A10CF92> /usr/lib/system/libsystem_sandbox.dylib
+    0x7ff828bbb000 -     0x7ff828bbdff7  libquarantine.dylib (133.120.2.700.2) <7260F4D8-BD40-35CC-9410-0C003CB0A99A> /usr/lib/system/libquarantine.dylib
+    0x7ff829272000 -     0x7ff829276fff  libsystem_coreservices.dylib (133) <20D6EA3B-B869-3223-AE79-4FBEBFAF73B5> /usr/lib/system/libsystem_coreservices.dylib
+    0x7ff8294c5000 -     0x7ff8294d7ff7  libz.1.dylib (77.240.1) <658B2897-6E70-3EB3-A33C-6BE73900CE5E> /usr/lib/libz.1.dylib
+    0x7ff8294d8000 -     0x7ff829538fd7  libsystem_m.dylib (3204.80.2) <B47F5E36-7824-3ACA-B0C1-FBAF12B9DE06> /usr/lib/system/libsystem_m.dylib
+    0x7ff82953a000 -     0x7ff82953ffff  libmacho.dylib (994) <0922DCB3-4D47-3557-8C5B-DD89F7C947D8> /usr/lib/system/libmacho.dylib
+    0x7ff82955c000 -     0x7ff829567ff7  libcommonCrypto.dylib (60191.100.1.700.1) <BF327E98-C53D-3D6D-B889-F768C4B0789E> /usr/lib/system/libcommonCrypto.dylib
+    0x7ff829568000 -     0x7ff829572fff  libunwind.dylib (202.2) <FED5B053-635B-3A3C-9620-7F139F6B3659> /usr/lib/system/libunwind.dylib
+    0x7ff829573000 -     0x7ff82957afff  liboah.dylib (254.25) <5DA69B44-04A6-3C64-B240-E73982DCE12F> /usr/lib/liboah.dylib
+    0x7ff82957b000 -     0x7ff829584fff  libcopyfile.dylib (180.100.3) <0B1D32D7-F246-3700-911D-09A79CE0C19A> /usr/lib/system/libcopyfile.dylib
+    0x7ff829585000 -     0x7ff82958cfff  libcompiler_rt.dylib (103.1) <C4C19CB4-F71A-3FD0-9D20-0A09689DC7AD> /usr/lib/system/libcompiler_rt.dylib
+    0x7ff82958d000 -     0x7ff829591ff7  libsystem_collections.dylib (1507.100.9.700.1) <D0651CD7-4B09-317C-9D31-B48369FB4B34> /usr/lib/system/libsystem_collections.dylib
+    0x7ff829592000 -     0x7ff829594ff7  libsystem_secinit.dylib (107.100.5) <504C1EBE-3D29-3F1B-B7A3-F0713C553B8F> /usr/lib/system/libsystem_secinit.dylib
+    0x7ff829595000 -     0x7ff829596fff  libremovefile.dylib (60) <25576A47-96DE-3C79-80E1-C4DC1E063E5A> /usr/lib/system/libremovefile.dylib
+    0x7ff829597000 -     0x7ff829597ffb  libkeymgr.dylib (31) <E2A7BBF0-E9AA-328E-BAED-D4A3A59C543E> /usr/lib/system/libkeymgr.dylib
+    0x7ff829598000 -     0x7ff82959ffff  libsystem_dnssd.dylib (1557.140.5.0.1) <53DE889D-3C96-3291-8D34-EE75F25B0BE6> /usr/lib/system/libsystem_dnssd.dylib
+    0x7ff8295a0000 -     0x7ff8295a4fff  libcache.dylib (85) <14D0A13F-2BA3-3985-B20F-B979E0ED6662> /usr/lib/system/libcache.dylib
+    0x7ff8295a5000 -     0x7ff8295a6fff  libSystem.B.dylib (1311.120.1.701.1) <72A0F909-1145-301C-8814-8F7494F87AFE> /usr/lib/libSystem.B.dylib
+    0x7ff82f81c000 -     0x7ff82f81cfff  libsystem_product_info_filter.dylib (10) <7D020B83-9765-3725-8C8E-8A10150AFA2A> /usr/lib/system/libsystem_product_info_filter.dylib

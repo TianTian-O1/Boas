@@ -1,0 +1,22 @@
+import tensor
+
+def main():
+    # 创建测试矩阵
+    var A = tensor.random(64, 64)
+    var B = tensor.random(64, 64)
+    
+    # 执行矩阵乘法（如果检测到NPU会自动使用NPU优化）
+    var C = tensor.matmul(A, B)
+    
+    return 0
+
+
+def main():
+    # 创建测试矩阵
+    var A = tensor.random(64, 64)
+    var B = tensor.random(64, 64)
+    
+    # 执行矩阵乘法（如果检测到NPU会自动使用NPU优化）
+    var C = tensor.matmul(A, B)
+    
+    return 0

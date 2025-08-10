@@ -1,0 +1,32 @@
+# Build
+build/
+*.o
+*.a
+*.so
+*.out
+
+# LLVM/MLIR
+*.ll
+*.bc
+*.s
+
+# Temp
+temp/
+tmp/
+*.tmp
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Release
+boas-v*/
+*.tar.gz

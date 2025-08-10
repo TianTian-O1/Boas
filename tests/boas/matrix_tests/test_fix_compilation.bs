@@ -1,0 +1,11 @@
+import tensor
+
+def test_simple_matmul():
+    A = tensor.create(2, 2, [1.0, 2.0, 3.0, 4.0])
+    B = tensor.create(2, 2, [2.0, 0.0, 1.0, 2.0])
+    C = tensor.matmul(A, B)
+    return C
+
+def main():
+    result = test_simple_matmul()
+    return result

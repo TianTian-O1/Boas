@@ -1,0 +1,103 @@
+# BOAS语言NPU设备测试示例
+# 测试显式指定NPU设备的功能
+
+import tensor
+
+def test_explicit_device():
+    """测试显式指定设备参数"""
+    print("=== 测试NPU设备指定 ===")
+    
+    # 在CPU上创建张量
+    A_cpu = tensor.create(4, 4, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], device="cpu")
+    B_cpu = tensor.create(4, 4, [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1], device="cpu")
+    
+    # 在NPU上创建张量
+    A_npu = tensor.create(4, 4, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], device="npu")
+    B_npu = tensor.create(4, 4, [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1], device="npu")
+    
+    # CPU计算
+    print("CPU计算:")
+    C_cpu = tensor.matmul(A_cpu, B_cpu)
+    tensor.print(C_cpu)
+    
+    # NPU计算
+    print("NPU计算:")
+    C_npu = tensor.matmul(A_npu, B_npu)
+    tensor.print(C_npu)
+    
+    # 在NPU上创建随机张量
+    print("\n随机张量测试:")
+    R_npu = tensor.random(256, 256, device="npu")
+    print("在NPU上创建了256x256随机张量")
+    
+    # 大规模NPU计算
+    print("\n大规模NPU计算:")
+    A_large = tensor.random(1024, 1024, device="npu")
+    B_large = tensor.random(1024, 1024, device="npu")
+    C_large = tensor.matmul(A_large, B_large)
+    print("完成1024x1024矩阵乘法在NPU上")
+
+def test_auto_device():
+    """测试自动设备选择"""
+    print("\n=== 测试自动设备选择 ===")
+    
+    # 不指定设备，系统自动选择
+    # 小矩阵默认CPU
+    A_small = tensor.random(32, 32)
+    B_small = tensor.random(32, 32)
+    C_small = tensor.matmul(A_small, B_small)
+    print("32x32矩阵乘法（自动选择设备）")
+    
+    # 大矩阵自动选择NPU
+    A_big = tensor.random(2048, 2048)
+    B_big = tensor.random(2048, 2048)
+    C_big = tensor.matmul(A_big, B_big)
+    print("2048x2048矩阵乘法（自动选择NPU）")
+
+def benchmark_devices():
+    """对比不同设备的性能"""
+    import time
+    
+    print("\n=== 设备性能对比 ===")
+    sizes = [64, 256, 512, 1024]
+    
+    for size in sizes:
+        print(f"\n矩阵大小: {size}x{size}")
+        
+        # CPU测试
+        A_cpu = tensor.random(size, size, device="cpu")
+        B_cpu = tensor.random(size, size, device="cpu")
+        start = time.time()
+        C_cpu = tensor.matmul(A_cpu, B_cpu)
+        cpu_time = time.time() - start
+        print(f"  CPU时间: {cpu_time:.3f}秒")
+        
+        # NPU测试
+        A_npu = tensor.random(size, size, device="npu")
+        B_npu = tensor.random(size, size, device="npu")
+        start = time.time()
+        C_npu = tensor.matmul(A_npu, B_npu)
+        npu_time = time.time() - start
+        print(f"  NPU时间: {npu_time:.3f}秒")
+        print(f"  加速比: {cpu_time/npu_time:.2f}x")
+
+def main():
+    print("=" * 60)
+    print("        BOAS NPU设备支持测试")
+    print("=" * 60)
+    
+    # 测试显式设备指定
+    test_explicit_device()
+    
+    # 测试自动设备选择
+    test_auto_device()
+    
+    # 性能对比
+    benchmark_devices()
+    
+    print("\n" + "=" * 60)
+    print("✅ 所有测试完成!")
+    print("=" * 60)
+
+if __name__ == "__main__":
+    main()

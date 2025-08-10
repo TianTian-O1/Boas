@@ -1,0 +1,253 @@
+import tensor
+import time
+
+# BOAS NPU Matrix Multiplication Test Suite
+# Tests optimized matrix multiplication on Ascend NPU
+
+def benchmark_matmul(size, name=""):
+    """Benchmark matrix multiplication at given size"""
+    print(f"\n=== {name} Matrix Multiplication ({size}x{size}) ===")
+    
+    # Create random matrices
+    A = tensor.random(size, size)
+    B = tensor.random(size, size)
+    
+    # Warmup
+    C = tensor.matmul(A, B)
+    
+    # Benchmark
+    start = time.now()
+    for i in range(10):
+        C = tensor.matmul(A, B)
+    end = time.now()
+    
+    avg_time = (end - start) / 10
+    flops = 2 * size * size * size  # 2*n^3 FLOPs for matmul
+    gflops = flops / (avg_time * 1e9)
+    
+    print(f"Average time: {avg_time:.4f} seconds")
+    print(f"Performance: {gflops:.2f} GFLOPS")
+    
+    return avg_time, gflops
+
+def test_small_matrices():
+    """Test small matrix operations (Vector unit)"""
+    print("\n### Small Matrix Tests (Vector Unit) ###")
+    
+    # 2x2 matrix - basic test
+    A = tensor.create(2, 2, [1, 2, 3, 4])
+    B = tensor.create(2, 2, [5, 6, 7, 8])
+    C = tensor.matmul(A, B)
+    print("2x2 Result:")
+    tensor.print(C)
+    
+    # 4x4 matrix
+    A4 = tensor.create(4, 4, [
+        1, 2, 3, 4,
+        5, 6, 7, 8,
+        9, 10, 11, 12,
+        13, 14, 15, 16
+    ])
+    B4 = tensor.identity(4)
+    C4 = tensor.matmul(A4, B4)
+    print("\n4x4 Identity test:")
+    tensor.print(C4)
+    
+    # Benchmark small sizes
+    benchmark_matmul(16, "Small")
+    benchmark_matmul(32, "Small")
+    benchmark_matmul(64, "Small")
+
+def test_medium_matrices():
+    """Test medium matrix operations (Mixed mode)"""
+    print("\n### Medium Matrix Tests (Mixed Mode) ###")
+    
+    sizes = [128, 256]
+    for size in sizes:
+        time, gflops = benchmark_matmul(size, "Medium")
+        
+        # Verify result correctness with identity
+        I = tensor.identity(size)
+        A = tensor.random(size, size)
+        B = tensor.matmul(A, I)
+        
+        # Check if A * I = A (approximately)
+        diff = tensor.subtract(B, A)
+        max_diff = tensor.max(tensor.abs(diff))
+        print(f"Identity test max difference: {max_diff}")
+        
+        if max_diff < 1e-10:
+            print("✓ Identity test passed")
+        else:
+            print("✗ Identity test failed")
+
+def test_large_matrices():
+    """Test large matrix operations (Cube unit)"""
+    print("\n### Large Matrix Tests (Cube Unit) ###")
+    
+    sizes = [512, 1024]
+    for size in sizes:
+        time, gflops = benchmark_matmul(size, "Large")
+        
+        # Test with special patterns
+        if size == 512:
+            # Create diagonal dominant matrix
+            A = tensor.random(size, size)
+            for i in range(size):
+                A[i][i] = A[i][i] + 10  # Make diagonal dominant
+            
+            B = tensor.random(size, size)
+            C = tensor.matmul(A, B)
+            print(f"Diagonal dominant test completed for {size}x{size}")
+
+def test_fusion():
+    """Test matrix multiplication fusion (A*B)*C"""
+    print("\n### Fusion Test ###")
+    
+    size = 256
+    A = tensor.random(size, size)
+    B = tensor.random(size, size)
+    C = tensor.random(size, size)
+    
+    # Non-fused version timing
+    start = time.now()
+    temp = tensor.matmul(A, B)
+    result1 = tensor.matmul(temp, C)
+    time1 = time.now() - start
+    
+    # Fused version (if optimizer detects pattern)
+    start = time.now()
+    result2 = tensor.matmul(tensor.matmul(A, B), C)
+    time2 = time.now() - start
+    
+    print(f"Non-fused time: {time1:.4f} seconds")
+    print(f"Potentially fused time: {time2:.4f} seconds")
+    
+    if time2 < time1:
+        speedup = time1 / time2
+        print(f"✓ Fusion optimization detected! Speedup: {speedup:.2f}x")
+    else:
+        print("○ No fusion detected (may not be applicable)")
+
+def test_batch_matmul():
+    """Test batch matrix multiplication"""
+    print("\n### Batch Matrix Multiplication Test ###")
+    
+    batch_size = 8
+    size = 128
+    
+    print(f"Batch size: {batch_size}, Matrix size: {size}x{size}")
+    
+    total_time = 0
+    for b in range(batch_size):
+        A = tensor.random(size, size)
+        B = tensor.random(size, size)
+        
+        start = time.now()
+        C = tensor.matmul(A, B)
+        batch_time = time.now() - start
+        total_time = total_time + batch_time
+    
+    avg_time = total_time / batch_size
+    flops = 2 * size * size * size * batch_size
+    gflops = flops / (total_time * 1e9)
+    
+    print(f"Total time: {total_time:.4f} seconds")
+    print(f"Average per batch: {avg_time:.4f} seconds")
+    print(f"Batch performance: {gflops:.2f} GFLOPS")
+
+def test_precision():
+    """Test numerical precision of NPU matmul"""
+    print("\n### Precision Test ###")
+    
+    # Test with known result
+    A = tensor.create(3, 3, [
+        1.0, 2.0, 3.0,
+        4.0, 5.0, 6.0,
+        7.0, 8.0, 9.0
+    ])
+    
+    B = tensor.create(3, 3, [
+        9.0, 8.0, 7.0,
+        6.0, 5.0, 4.0,
+        3.0, 2.0, 1.0
+    ])
+    
+    C = tensor.matmul(A, B)
+    
+    # Expected result
+    expected = tensor.create(3, 3, [
+        30.0, 24.0, 18.0,
+        84.0, 69.0, 54.0,
+        138.0, 114.0, 90.0
+    ])
+    
+    print("Result:")
+    tensor.print(C)
+    print("\nExpected:")
+    tensor.print(expected)
+    
+    # Check precision
+    diff = tensor.subtract(C, expected)
+    max_error = tensor.max(tensor.abs(diff))
+    print(f"\nMax error: {max_error}")
+    
+    if max_error < 1e-10:
+        print("✓ Precision test passed")
+    else:
+        print("✗ Precision test failed")
+
+def stress_test():
+    """Stress test with continuous operations"""
+    print("\n### Stress Test ###")
+    
+    sizes = [64, 128, 256, 512]
+    iterations = 5
+    
+    print(f"Running {iterations} iterations for each size...")
+    
+    for size in sizes:
+        print(f"\nSize {size}x{size}:")
+        A = tensor.random(size, size)
+        B = tensor.random(size, size)
+        
+        start = time.now()
+        for i in range(iterations):
+            C = tensor.matmul(A, B)
+            # Use result as input for next iteration
+            A = C
+        end = time.now()
+        
+        total_time = end - start
+        flops = 2 * size * size * size * iterations
+        gflops = flops / (total_time * 1e9)
+        
+        print(f"Total time: {total_time:.4f} seconds")
+        print(f"Performance: {gflops:.2f} GFLOPS")
+
+def main():
+    print("=" * 60)
+    print("       BOAS NPU Matrix Multiplication Test Suite")
+    print("             Optimized for Ascend NPU")
+    print("=" * 60)
+    
+    # Check NPU availability
+    if tensor.npu_available():
+        print("✓ NPU detected and initialized")
+        print(f"  Device: {tensor.npu_device_name()}")
+        print(f"  Compute capability: {tensor.npu_compute_capability()}")
+    else:
+        print("⚠ NPU not available, running in CPU mode")
+    
+    # Run test suite
+    test_precision()       # Verify correctness first
+    test_small_matrices()  # Vector unit tests
+    test_medium_matrices() # Mixed mode tests
+    test_large_matrices()  # Cube unit tests
+    test_fusion()         # Fusion optimization test
+    test_batch_matmul()   # Batch processing test
+    stress_test()         # Stress test
+    
+    print("\n" + "=" * 60)
+    print("            Test Suite Completed Successfully")
+    print("=" * 60)

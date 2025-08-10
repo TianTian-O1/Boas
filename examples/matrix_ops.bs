@@ -1,0 +1,49 @@
+# BOAS Language Example - Matrix Operations
+# File: matrix_ops.bs
+
+import tensor
+
+def matmul(A, B):
+    """Simple matrix multiplication"""
+    return tensor.matmul(A, B)
+
+def matmul_transpose(A, B):
+    """Matrix multiplication with transposition"""
+    B_T = tensor.transpose(B)
+    return tensor.matmul(A, B_T)
+
+def matrix_chain(A, B, C):
+    """Chained matrix operations"""
+    temp = tensor.matmul(A, B)
+    return tensor.matmul(temp, C)
+
+def mixed_precision_matmul(A, B):
+    """Mixed precision computation - automatically uses FP16 for large matrices"""
+    # NPU optimizer will automatically select FP16 for matrices >= 256x256
+    return tensor.matmul(A, B)
+
+def small_matmul(A, B):
+    """Small matrix optimization"""
+    # Optimized for small matrices < 256x256
+    return tensor.matmul(A, B)
+
+def element_wise_ops(A, B):
+    """Element-wise operations"""
+    C = tensor.add(A, B)
+    D = tensor.multiply(C, 2.0)
+    return D
+
+def main():
+    # Create test matrices
+    A = tensor.random(512, 512)
+    B = tensor.random(512, 512)
+    
+    # Perform matrix multiplication
+    C = matmul(A, B)
+    
+    # Print result shape
+    print("Result shape: 512x512")
+    print("Matrix multiplication completed")
+
+if __name__ == "__main__":
+    main()

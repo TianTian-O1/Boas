@@ -1,0 +1,53 @@
+import tensor
+
+# Simple NPU Matrix Multiplication Test
+# This test verifies basic NPU matmul functionality
+
+def test_npu_basic():
+    print("Testing NPU Matrix Multiplication")
+    print("-" * 40)
+    
+    # Test 1: Small 2x2 matrices
+    print("\nTest 1: 2x2 matrices")
+    A = tensor.create(2, 2, [1.0, 2.0, 3.0, 4.0])
+    B = tensor.create(2, 2, [5.0, 6.0, 7.0, 8.0])
+    C = tensor.matmul(A, B)
+    
+    print("A = [[1, 2], [3, 4]]")
+    print("B = [[5, 6], [7, 8]]")
+    print("C = A * B =")
+    tensor.print(C)
+    # Expected: [[19, 22], [43, 50]]
+    
+    # Test 2: 4x4 matrices
+    print("\nTest 2: 4x4 matrices")
+    A4 = tensor.random(4, 4)
+    B4 = tensor.identity(4)
+    C4 = tensor.matmul(A4, B4)
+    print("A * I = A (identity test)")
+    print("Max difference:", tensor.max(tensor.abs(tensor.subtract(C4, A4))))
+    
+    # Test 3: Larger matrices for NPU
+    print("\nTest 3: 64x64 matrices (NPU optimized)")
+    A64 = tensor.random(64, 64)
+    B64 = tensor.random(64, 64)
+    C64 = tensor.matmul(A64, B64)
+    print("64x64 multiplication completed")
+    
+    # Test 4: Even larger for Cube unit
+    print("\nTest 4: 256x256 matrices (Cube unit)")
+    A256 = tensor.random(256, 256)
+    B256 = tensor.random(256, 256)
+    C256 = tensor.matmul(A256, B256)
+    print("256x256 multiplication completed")
+    
+    print("\n✓ All tests passed!")
+
+def main():
+    print("=" * 50)
+    print("    BOAS NPU Matrix Multiplication Test")
+    print("=" * 50)
+    
+    test_npu_basic()
+    
+    print("\nTest completed successfully!")

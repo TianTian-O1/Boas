@@ -1,0 +1,295 @@
+import tensor
+import time
+
+# BOAS Mixed Precision Matrix Multiplication Test
+# Automatic Mixed Precision (AMP) for Ascend NPU
+
+class MixedPrecision:
+    """Automatic Mixed Precision controller for BOAS"""
+    
+    # Precision modes
+    FP32 = "fp32"
+    FP16 = "fp16"
+    MIXED = "mixed"
+    AUTO = "auto"
+    
+    # Size thresholds for automatic mode
+    FP16_THRESHOLD = 256
+    MIXED_THRESHOLD = 128
+    
+    def __init__(self, mode="auto"):
+        self.mode = mode
+        self.use_tensor_core = True
+        self.allow_fp16_accumulation = False
+        
+    def select_precision(self, size):
+        """Automatically select precision based on matrix size"""
+        if self.mode != "auto":
+            return self.mode
+            
+        if size >= self.FP16_THRESHOLD:
+            return self.FP16
+        elif size >= self.MIXED_THRESHOLD:
+            return self.MIXED
+        else:
+            return self.FP32
+    
+    def matmul(self, A, B):
+        """Mixed precision matrix multiplication"""
+        rows_A = tensor.rows(A)
+        cols_B = tensor.cols(B)
+        size = max(rows_A, cols_B)
+        
+        precision = self.select_precision(size)
+        
+        if precision == self.FP16:
+            return self.matmul_fp16(A, B)
+        elif precision == self.MIXED:
+            return self.matmul_mixed(A, B)
+        else:
+            return tensor.matmul(A, B)
+    
+    def matmul_fp16(self, A, B):
+        """Pure FP16 matrix multiplication"""
+        # Convert to FP16
+        A_fp16 = tensor.cast(A, "float16")
+        B_fp16 = tensor.cast(B, "float16")
+        
+        # Compute in FP16
+        C_fp16 = tensor.matmul(A_fp16, B_fp16, precision="fp16")
+        
+        # Convert back to FP32 if needed
+        if not self.allow_fp16_accumulation:
+            return tensor.cast(C_fp16, "float32")
+        return C_fp16
+    
+    def matmul_mixed(self, A, B):
+        """Mixed precision: FP16 compute, FP32 accumulate"""
+        # Convert inputs to FP16 for computation
+        A_fp16 = tensor.cast(A, "float16")
+        B_fp16 = tensor.cast(B, "float16")
+        
+        # Compute with FP32 accumulation
+        return tensor.matmul(A_fp16, B_fp16, 
+                           compute_type="fp16", 
+                           accumulate_type="fp32")
+
+def benchmark_precision(size, precision_mode, iterations=10):
+    """Benchmark matrix multiplication with specific precision"""
+    print(f"\n  {precision_mode} precision ({size}x{size}):")
+    
+    # Create matrices
+    A = tensor.random(size, size)
+    B = tensor.random(size, size)
+    
+    # Set precision mode
+    amp = MixedPrecision(precision_mode)
+    
+    # Warmup
+    C = amp.matmul(A, B)
+    
+    # Benchmark
+    start = time.now()
+    for i in range(iterations):
+        C = amp.matmul(A, B)
+    end = time.now()
+    
+    elapsed = end - start
+    avg_time = elapsed / iterations
+    flops = 2 * size * size * size
+    gflops = flops / (avg_time * 1e9)
+    
+    print(f"    Time: {avg_time*1000:.2f} ms")
+    print(f"    Performance: {gflops:.1f} GFLOPS")
+    
+    return gflops
+
+def test_precision_accuracy():
+    """Test numerical accuracy of different precision modes"""
+    print("\n=== Precision Accuracy Test ===")
+    
+    # Small test matrix with known result
+    A = tensor.create(3, 3, [
+        1.0, 2.0, 3.0,
+        4.0, 5.0, 6.0,
+        7.0, 8.0, 9.0
+    ])
+    
+    B = tensor.create(3, 3, [
+        9.0, 8.0, 7.0,
+        6.0, 5.0, 4.0,
+        3.0, 2.0, 1.0
+    ])
+    
+    # Expected result (computed in FP64 for reference)
+    expected = tensor.create(3, 3, [
+        30.0, 24.0, 18.0,
+        84.0, 69.0, 54.0,
+        138.0, 114.0, 90.0
+    ])
+    
+    print("\nReference (expected) result:")
+    tensor.print(expected)
+    
+    # Test different precision modes
+    modes = ["fp32", "mixed", "fp16"]
+    
+    for mode in modes:
+        print(f"\n{mode.upper()} precision:")
+        amp = MixedPrecision(mode)
+        result = amp.matmul(A, B)
+        tensor.print(result)
+        
+        # Calculate error
+        diff = tensor.subtract(result, expected)
+        max_error = tensor.max(tensor.abs(diff))
+        print(f"  Max error: {max_error:.6f}")
+        
+        if max_error < 1e-3:
+            print("  ✓ Acceptable accuracy")
+        else:
+            print("  ⚠ Large error detected")
+
+def test_automatic_selection():
+    """Test automatic precision selection"""
+    print("\n=== Automatic Precision Selection Test ===")
+    
+    amp = MixedPrecision("auto")
+    sizes = [64, 128, 256, 512, 1024]
+    
+    print("\nAutomatic precision selection:")
+    for size in sizes:
+        precision = amp.select_precision(size)
+        print(f"  {size}x{size}: {precision}")
+
+def benchmark_all_precisions():
+    """Comprehensive benchmark of all precision modes"""
+    print("\n=== Mixed Precision Performance Benchmark ===")
+    
+    sizes = [128, 256, 512, 1024, 2048]
+    modes = ["fp32", "mixed", "fp16", "auto"]
+    
+    results = {}
+    
+    for size in sizes:
+        print(f"\nMatrix size: {size}x{size}")
+        results[size] = {}
+        
+        for mode in modes:
+            gflops = benchmark_precision(size, mode, iterations=5)
+            results[size][mode] = gflops
+    
+    # Print summary table
+    print("\n" + "="*70)
+    print("                MIXED PRECISION PERFORMANCE SUMMARY")
+    print("="*70)
+    print(f"{'Size':<10} {'FP32':<15} {'Mixed':<15} {'FP16':<15} {'Auto':<15}")
+    print("-"*70)
+    
+    for size in sizes:
+        row = f"{size}x{size:<5}"
+        for mode in modes:
+            gflops = results[size][mode]
+            row = row + f" {gflops:<14.1f}"
+        print(row)
+    
+    # Calculate speedups
+    print("\n" + "="*70)
+    print("                    SPEEDUP OVER FP32")
+    print("="*70)
+    print(f"{'Size':<10} {'Mixed':<15} {'FP16':<15} {'Auto':<15}")
+    print("-"*70)
+    
+    for size in sizes:
+        fp32_perf = results[size]["fp32"]
+        row = f"{size}x{size:<5}"
+        for mode in ["mixed", "fp16", "auto"]:
+            speedup = results[size][mode] / fp32_perf
+            row = row + f" {speedup:<14.2f}x"
+        print(row)
+
+def test_tensor_core_utilization():
+    """Test Tensor Core utilization with different configurations"""
+    print("\n=== Tensor Core Utilization Test ===")
+    
+    # Tensor Core optimal sizes (multiples of 16)
+    sizes = [16, 32, 64, 128, 256, 512]
+    
+    print("\nTensor Core optimal sizes (FP16):")
+    for size in sizes:
+        amp = MixedPrecision("fp16")
+        amp.use_tensor_core = True
+        
+        A = tensor.random(size, size)
+        B = tensor.random(size, size)
+        
+        start = time.now()
+        C = amp.matmul(A, B)
+        end = time.now()
+        
+        elapsed = (end - start) * 1000  # ms
+        flops = 2 * size * size * size
+        gflops = flops / (elapsed * 1e6)
+        
+        # Theoretical peak for Tensor Core (assuming 50 TFLOPS FP16)
+        theoretical_peak = 50000  # GFLOPS
+        utilization = (gflops / theoretical_peak) * 100
+        
+        print(f"  {size}x{size}: {gflops:.1f} GFLOPS ({utilization:.1f}% utilization)")
+
+def stress_test_mixed_precision():
+    """Stress test with continuous mixed precision operations"""
+    print("\n=== Mixed Precision Stress Test ===")
+    
+    amp = MixedPrecision("mixed")
+    sizes = [256, 512, 1024]
+    iterations = 100
+    
+    print(f"\nRunning {iterations} iterations per size...")
+    
+    for size in sizes:
+        A = tensor.random(size, size)
+        B = tensor.random(size, size)
+        
+        print(f"\n{size}x{size} matrices:")
+        
+        # Measure sustained performance
+        start = time.now()
+        for i in range(iterations):
+            C = amp.matmul(A, B)
+            # Chain operations to test accumulation
+            A = C
+        end = time.now()
+        
+        total_time = end - start
+        flops = 2 * size * size * size * iterations
+        sustained_gflops = flops / (total_time * 1e9)
+        
+        print(f"  Sustained performance: {sustained_gflops:.1f} GFLOPS")
+        print(f"  Average latency: {(total_time/iterations)*1000:.2f} ms")
+
+def main():
+    print("="*70)
+    print("       BOAS MIXED PRECISION MATRIX MULTIPLICATION TEST")
+    print("                  Optimized for Ascend NPU")
+    print("="*70)
+    
+    # Check NPU availability
+    if tensor.npu_available():
+        print("✓ NPU detected and initialized")
+        print(f"  Device: {tensor.npu_device_name()}")
+        print(f"  FP16 support: {tensor.npu_supports_fp16()}")
+        print(f"  Tensor Core: {tensor.npu_has_tensor_core()}")
+    else:
+        print("⚠ NPU not available, running in simulation mode")
+    
+    # Run test suite
+    test_precision_accuracy()
+    test_automatic_selection()
+    benchmark_all_precisions()
+    test_tensor_core_utilization()
+    stress_test_mixed_precision()
+    
+    print("\n" + "="*70)
+    print("              MIXED PRECISION TEST COMPLETE")
+    print("="*70)

@@ -1,0 +1,95 @@
+# BOAS Language Example - NPU Optimized Operations
+# File: npu_optimized.bs
+
+import tensor
+import time
+
+def npu_large_matmul(A, B):
+    """NPU-optimized large matrix multiplication
+    Automatically uses Cube units and FP16 for matrices >= 2048x2048
+    """
+    return tensor.matmul(A, B)
+
+def batched_matmul(batch_A, batch_B):
+    """Batched matrix multiplication
+    Batch dimension is automatically handled by NPU
+    """
+    results = []
+    for i in range(len(batch_A)):
+        result = tensor.matmul(batch_A[i], batch_B[i])
+        results.append(result)
+    return results
+
+def fused_computation(A, B, C):
+    """Fused operations for NPU
+    These operations will be fused on NPU for better performance
+    """
+    temp1 = tensor.matmul(A, B)
+    temp2 = tensor.add(temp1, C)
+    result = tensor.relu(temp2)
+    return result
+
+def tensor_core_gemm(A, B):
+    """Tensor Core utilization
+    Uses FP16 precision for Tensor Core acceleration
+    """
+    # Convert to FP16 for Tensor Cores
+    A_fp16 = tensor.to_fp16(A)
+    B_fp16 = tensor.to_fp16(B)
+    C_fp16 = tensor.matmul(A_fp16, B_fp16)
+    # Convert back to FP32
+    return tensor.to_fp32(C_fp16)
+
+def benchmark():
+    """Performance benchmark for different matrix sizes"""
+    sizes = [64, 128, 256, 512, 1024, 2048, 4096]
+    
+    print("BOAS NPU Performance Benchmark")
+    print("-" * 50)
+    
+    for size in sizes:
+        # Create random matrices
+        A = tensor.random(size, size)
+        B = tensor.random(size, size)
+        
+        # Measure performance
+        start = time.time()
+        C = tensor.matmul(A, B)
+        end = time.time()
+        
+        # Calculate GFLOPS
+        elapsed = end - start
+        flops = 2.0 * size * size * size
+        gflops = flops / (elapsed * 1e9)
+        
+        print(f"Size: {size}x{size} - Performance: {gflops:.2f} GFLOPS")
+
+def main():
+    print("BOAS NPU Optimization Demo")
+    print("=" * 50)
+    
+    # Test different optimizations
+    print("\n1. Testing small matrix optimization...")
+    A_small = tensor.random(64, 64)
+    B_small = tensor.random(64, 64)
+    C_small = tensor.matmul(A_small, B_small)
+    print("   Small matrix multiplication completed")
+    
+    print("\n2. Testing large matrix with FP16...")
+    A_large = tensor.random(2048, 2048)
+    B_large = tensor.random(2048, 2048)
+    C_large = npu_large_matmul(A_large, B_large)
+    print("   Large matrix multiplication completed")
+    
+    print("\n3. Testing fused operations...")
+    A = tensor.random(1024, 1024)
+    B = tensor.random(1024, 1024)
+    C = tensor.random(1024, 1024)
+    result = fused_computation(A, B, C)
+    print("   Fused computation completed")
+    
+    print("\n4. Running performance benchmark...")
+    benchmark()
+
+if __name__ == "__main__":
+    main()

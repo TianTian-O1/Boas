@@ -1,0 +1,38 @@
+import tensor
+
+def main():
+    print("BOAS 矩阵乘法测试")
+    print("=" * 40)
+    
+    # 测试 2x2 矩阵
+    print("\n1. 测试 2x2 矩阵:")
+    A = tensor.create(2, 2, [1, 2, 3, 4])
+    B = tensor.create(2, 2, [5, 6, 7, 8])
+    C = tensor.matmul(A, B)
+    print("A =", A)
+    print("B =", B)
+    print("C = A × B =", C)
+    
+    # 测试随机矩阵
+    print("\n2. 测试 64x64 随机矩阵:")
+    A64 = tensor.random(64, 64)
+    B64 = tensor.random(64, 64)
+    C64 = tensor.matmul(A64, B64)
+    print("完成 64x64 矩阵乘法")
+    
+    print("\n3. 测试 256x256 随机矩阵:")
+    A256 = tensor.random(256, 256)
+    B256 = tensor.random(256, 256)
+    C256 = tensor.matmul(A256, B256)
+    print("完成 256x256 矩阵乘法")
+    
+    print("\n4. 测试 512x512 随机矩阵:")
+    A512 = tensor.random(512, 512)
+    B512 = tensor.random(512, 512)
+    C512 = tensor.matmul(A512, B512)
+    print("完成 512x512 矩阵乘法")
+    
+    print("\n✅ 所有测试完成!")
+
+if __name__ == "__main__":
+    main()

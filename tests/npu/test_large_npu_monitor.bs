@@ -1,0 +1,60 @@
+import tensor
+
+def test_large_npu_heavy():
+    # 创建大矩阵进行密集计算
+    A1024 = tensor.random(1024, 1024)
+    B1024 = tensor.random(1024, 1024)
+    
+    # 执行多次大矩阵乘法
+    C1 = tensor.matmul(A1024, B1024)
+    C2 = tensor.matmul(C1, A1024)
+    C3 = tensor.matmul(B1024, C2)
+    
+    return C3
+
+def test_huge_npu():
+    # 超大矩阵测试NPU性能极限
+    A2048 = tensor.random(2048, 2048)
+    B2048 = tensor.random(2048, 2048)
+    
+    # 执行超大矩阵乘法
+    C_huge = tensor.matmul(A2048, B2048)
+    
+    return C_huge
+
+def main():
+    # 连续执行多个大矩阵计算
+    result1 = test_large_npu_heavy()
+    result2 = test_huge_npu()
+    
+    return result2
+
+
+def test_large_npu_heavy():
+    # 创建大矩阵进行密集计算
+    A1024 = tensor.random(1024, 1024)
+    B1024 = tensor.random(1024, 1024)
+    
+    # 执行多次大矩阵乘法
+    C1 = tensor.matmul(A1024, B1024)
+    C2 = tensor.matmul(C1, A1024)
+    C3 = tensor.matmul(B1024, C2)
+    
+    return C3
+
+def test_huge_npu():
+    # 超大矩阵测试NPU性能极限
+    A2048 = tensor.random(2048, 2048)
+    B2048 = tensor.random(2048, 2048)
+    
+    # 执行超大矩阵乘法
+    C_huge = tensor.matmul(A2048, B2048)
+    
+    return C_huge
+
+def main():
+    # 连续执行多个大矩阵计算
+    result1 = test_large_npu_heavy()
+    result2 = test_huge_npu()
+    
+    return result2

@@ -1,0 +1,11 @@
+import tensor
+
+def test_large_matmul():
+    A = tensor.random(128, 128)
+    B = tensor.random(128, 128)
+    C = tensor.matmul(A, B)
+    return C
+
+def main():
+    result = test_large_matmul()
+    return result

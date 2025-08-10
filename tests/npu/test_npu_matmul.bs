@@ -1,0 +1,38 @@
+import tensor
+
+def test_basic_npu():
+    print("Testing basic NPU matrix multiplication...")
+    
+    # Small test matrices
+    A = tensor.create(2, 2, [1, 2, 3, 4])
+    B = tensor.create(2, 2, [5, 6, 7, 8])
+    C = tensor.matmul(A, B)
+    print("Small matrix result:")
+    print(C)
+
+def test_medium_npu():
+    print("Testing medium NPU matrix multiplication...")
+    
+    # Medium matrices for NPU optimization
+    A64 = tensor.random(64, 64)
+    B64 = tensor.random(64, 64)
+    C64 = tensor.matmul(A64, B64)
+    print("Medium matrix (64x64) completed")
+
+def test_large_npu():
+    print("Testing large NPU matrix multiplication...")
+    
+    # Large matrices to trigger NPU optimizations
+    A512 = tensor.random(512, 512)
+    B512 = tensor.random(512, 512) 
+    C512 = tensor.matmul(A512, B512)
+    print("Large matrix (512x512) completed")
+
+def main():
+    print("=== Boas NPU Matrix Multiplication Test ===")
+    
+    test_basic_npu()
+    test_medium_npu() 
+    test_large_npu()
+    
+    print("NPU matrix multiplication tests completed!")

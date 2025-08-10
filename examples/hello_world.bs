@@ -1,0 +1,33 @@
+# BOAS Language Example - Hello World
+# File: hello_world.bs
+
+def main():
+    print("Hello, World from BOAS!")
+    
+    # Simple computation
+    a = 10
+    b = 20
+    c = a + b
+    
+    print(f"10 + 20 = {c}")
+    
+    # Matrix example
+    import tensor
+    
+    # Create 2x2 matrices
+    A = tensor.create(2, 2, [1, 2, 3, 4])  # [[1, 2], [3, 4]]
+    B = tensor.create(2, 2, [5, 6, 7, 8])  # [[5, 6], [7, 8]]
+    
+    # Matrix multiplication
+    C = tensor.matmul(A, B)
+    
+    print("Matrix A:")
+    print(A)
+    print("\nMatrix B:")
+    print(B)
+    print("\nA × B =")
+    print(C)
+    # Result should be [[19, 22], [43, 50]]
+
+if __name__ == "__main__":
+    main()

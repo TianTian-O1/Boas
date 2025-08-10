@@ -1,0 +1,22 @@
+import tensor
+
+def test_cann_basic():
+    A = tensor.create(4, 4, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0])
+    B = tensor.create(4, 4, [2.0, 0.0, 1.0, 3.0, 1.0, 2.0, 0.0, 1.0, 3.0, 1.0, 2.0, 0.0, 0.0, 3.0, 1.0, 2.0])
+    C = tensor.matmul(A, B)
+    return C
+
+def main():
+    result = test_cann_basic()
+    return result
+
+
+def test_cann_basic():
+    A = tensor.create(4, 4, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0])
+    B = tensor.create(4, 4, [2.0, 0.0, 1.0, 3.0, 1.0, 2.0, 0.0, 1.0, 3.0, 1.0, 2.0, 0.0, 0.0, 3.0, 1.0, 2.0])
+    C = tensor.matmul(A, B)
+    return C
+
+def main():
+    result = test_cann_basic()
+    return result
