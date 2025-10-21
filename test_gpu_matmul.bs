@@ -1,0 +1,44 @@
+import tensor
+
+def main():
+    print("BOAS GPU 矩阵乘法测试")
+    print("=" * 40)
+
+    # 测试 2x2 矩阵
+    print("\n1. 测试 2x2 矩阵 (GPU):")
+    A = tensor.create(2, 2, [1, 2, 3, 4])
+    B = tensor.create(2, 2, [5, 6, 7, 8])
+    C = tensor.matmul(A, B)
+    print("A =", A)
+    print("B =", B)
+    print("C = A × B =", C)
+
+    # 测试随机矩阵
+    print("\n2. 测试 128x128 随机矩阵 (GPU):")
+    A128 = tensor.random(128, 128)
+    B128 = tensor.random(128, 128)
+    C128 = tensor.matmul(A128, B128)
+    print("完成 128x128 矩阵乘法")
+
+    print("\n3. 测试 512x512 随机矩阵 (GPU):")
+    A512 = tensor.random(512, 512)
+    B512 = tensor.random(512, 512)
+    C512 = tensor.matmul(A512, B512)
+    print("完成 512x512 矩阵乘法")
+
+    print("\n4. 测试 1024x1024 随机矩阵 (GPU):")
+    A1024 = tensor.random(1024, 1024)
+    B1024 = tensor.random(1024, 1024)
+    C1024 = tensor.matmul(A1024, B1024)
+    print("完成 1024x1024 矩阵乘法")
+
+    print("\n5. 测试 2048x2048 随机矩阵 (GPU - 大矩阵优化):")
+    A2048 = tensor.random(2048, 2048)
+    B2048 = tensor.random(2048, 2048)
+    C2048 = tensor.matmul(A2048, B2048)
+    print("完成 2048x2048 矩阵乘法")
+
+    print("\n✅ 所有GPU测试完成!")
+
+if __name__ == "__main__":
+    main()

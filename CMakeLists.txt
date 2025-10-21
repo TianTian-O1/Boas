@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
-project(MatrixCompiler)
+project(MatrixCompiler LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# 可选：启用CUDA支持
+option(ENABLE_CUDA "Enable CUDA GPU support" ON)
 
 # 设置 LLVM 安装路径
 if(NOT DEFINED LLVM_INSTALL_PREFIX)
@@ -28,25 +31,64 @@ include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+# 添加 CUDA 支持
+set(CUDA_LIBRARIES "")
+set(CUDA_SOURCES "")
+if(ENABLE_CUDA)
+    enable_language(CUDA)
+    find_package(CUDAToolkit QUIET)
+
+    if(CUDAToolkit_FOUND)
+        message(STATUS "CUDA Toolkit found: ${CUDAToolkit_VERSION}")
+        message(STATUS "CUDA Include dirs: ${CUDAToolkit_INCLUDE_DIRS}")
+
+        # 设置CUDA编译选项
+        set(CMAKE_CUDA_STANDARD 14)
+        set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+        set(CMAKE_CUDA_ARCHITECTURES 60 61 70 75 80 86)  # 支持多种GPU架构
+
+        # CUDA库
+        set(CUDA_LIBRARIES
+            CUDA::cudart
+            CUDA::cublas
+        )
+
+        # CUDA源文件
+        set(CUDA_SOURCES
+            lib/mlirops/CUDAKernels.cu
+        )
+
+        include_directories(${CUDAToolkit_INCLUDE_DIRS})
+        add_definitions(-DHAVE_CUDA_SUPPORT=1)
+
+        message(STATUS "CUDA support enabled")
+    else()
+        message(WARNING "CUDA Toolkit not found, GPU support will be disabled")
+        set(ENABLE_CUDA OFF)
+    endif()
+else()
+    message(STATUS "CUDA support disabled")
+endif()
+
 # 添加 CANN 支持
 set(ASCEND_TOOLKIT_ROOT "/usr/local/Ascend/ascend-toolkit/latest")
 if(EXISTS ${ASCEND_TOOLKIT_ROOT})
     message(STATUS "Found CANN toolkit at: ${ASCEND_TOOLKIT_ROOT}")
     include_directories(${ASCEND_TOOLKIT_ROOT}/aarch64-linux/include)
     link_directories(${ASCEND_TOOLKIT_ROOT}/aarch64-linux/lib64)
-    
+
     # 查找CANN库
     find_library(ASCENDCL_LIB ascendcl PATHS ${ASCEND_TOOLKIT_ROOT}/aarch64-linux/lib64)
     find_library(ACLLIB_RT_LIB acl_rt PATHS ${ASCEND_TOOLKIT_ROOT}/aarch64-linux/lib64)
     find_library(RUNTIME_LIB runtime PATHS ${ASCEND_TOOLKIT_ROOT}/aarch64-linux/lib64)
-    
+
     if(ASCENDCL_LIB)
         message(STATUS "Found CANN ascendcl library: ${ASCENDCL_LIB}")
         set(CANN_LIBRARIES ${ASCENDCL_LIB})
         if(ACLLIB_RT_LIB)
             list(APPEND CANN_LIBRARIES ${ACLLIB_RT_LIB})
         endif()
-        if(RUNTIME_LIB) 
+        if(RUNTIME_LIB)
             list(APPEND CANN_LIBRARIES ${RUNTIME_LIB})
         endif()
         add_definitions(-DHAVE_CANN_SUPPORT=1)
@@ -106,6 +148,10 @@ add_library(matrix-lib
     lib/mlirops/NPUEnvironment.cpp
     lib/mlirops/NPUTritonGenerator.cpp
     lib/mlirops/CANNRuntime.cpp
+    lib/mlirops/GPUBackend.cpp
+    lib/mlirops/CUDARuntime.cpp
+    lib/mlirops/DeviceManager.cpp
+    ${CUDA_SOURCES}
     # Boas Dialect 暂时注释掉
     # lib/mlirops/BoasDialect/BoasDialect.cpp
     # lib/mlirops/BoasDialect/BoasOps.cpp
@@ -120,6 +166,11 @@ add_library(matrix-lib
     lib/mlirops/TensorMemoryPool.cpp
     lib/Debug.cpp
 )
+
+# 如果有CUDA源文件，设置CUDA编译属性
+if(ENABLE_CUDA AND CUDA_SOURCES)
+    set_source_files_properties(${CUDA_SOURCES} PROPERTIES LANGUAGE CUDA)
+endif()
 
 # TableGen files are pre-generated, no dependencies needed
 
@@ -156,7 +207,7 @@ target_compile_definitions(matrix-lib PRIVATE
     LLVM_INSTALL_PATH="${LLVM_INSTALL_PREFIX}"
 )
 
-target_link_libraries(matrix-lib PUBLIC ${llvm_libs} ${MLIR_LIBS} ${CANN_LIBRARIES})
+target_link_libraries(matrix-lib PUBLIC ${llvm_libs} ${MLIR_LIBS} ${CANN_LIBRARIES} ${CUDA_LIBRARIES})
 
 # 添加可执行文件
 add_executable(matrix-compiler tests/unit/cpp/test_full_pipeline.cpp)

@@ -6,14 +6,16 @@
 
 ## 🚀 概述
 
-BOAS 是一种革命性的编程语言，完全兼容 Python 语法，但通过先进的编译器优化技术实现了超越 C++ 的性能。专为 AI 计算优化，特别是华为昇腾 NPU。
+BOAS 是一种革命性的编程语言，完全兼容 Python 语法，但通过先进的编译器优化技术实现了超越 C++ 的性能。专为 AI 计算优化，支持华为昇腾 NPU 和 Nvidia GPU。
 
 ### 核心特性
 
 - **🐍 Python 语法**: 100% 兼容 Python 语法，无学习成本
 - **🏆 极致性能**: 超越 CANN-OPS-ADV 52%(FP32) 和 62%(FP16)
+- **🎮 多设备支持**: 支持 Nvidia GPU (CUDA)、华为昇腾 NPU 和 CPU
 - **🔧 直接硬件访问**: 直接控制 Cube 单元、Tensor Core 和 HBM 内存
 - **⚡ 自动优化**: 自适应算法，针对不同矩阵大小自动优化
+- **🤖 智能设备选择**: 自动检测并选择最佳可用设备
 - **🎯 混合精度**: 自动 FP16/FP32 选择，获得最佳性能
 
 ## 📊 性能对比
@@ -29,11 +31,17 @@ BOAS 是一种革命性的编程语言，完全兼容 Python 语法，但通过�
 
 ### 环境要求
 
-- 华为昇腾 NPU (910A/910B/310P)
-- CANN Toolkit 6.0+
+#### 必需
 - LLVM 20.0
 - CMake 3.20+
 - Python 3.8+
+- C++17 编译器
+
+#### 可选（根据目标设备）
+- **Nvidia GPU支持**: CUDA Toolkit 11.0+ (推荐 12.0+)
+- **华为昇腾NPU支持**: CANN Toolkit 6.0+
+
+设备优先级：GPU > NPU > CPU（自动选择）
 
 ### 从源码编译
 
@@ -41,10 +49,22 @@ BOAS 是一种革命性的编程语言，完全兼容 Python 语法，但通过�
 git clone https://github.com/boas-project/boas.git
 cd boas
 mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
+
+# 启用CUDA支持（默认）
+cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=ON
+
+# 或禁用CUDA支持
+# cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=OFF
+
 make -j$(nproc)
 sudo make install
 ```
+
+#### 编译选项
+
+- `-DENABLE_CUDA=ON/OFF`: 启用/禁用 CUDA GPU 支持（默认：ON）
+- `-DCMAKE_CUDA_ARCHITECTURES="75;80;86"`: 指定GPU架构
+- `-DLLVM_INSTALL_PREFIX=/path/to/llvm`: 指定LLVM路径
 
 ## 📝 快速上手
 
@@ -85,26 +105,51 @@ boas compile hello_world.bs -o hello_world
 ./hello_world
 ```
 
-### NPU 优化示例
+### GPU/NPU 优化示例
 
 ```python
-# npu_matmul.bs
+# accelerated_matmul.bs
 import tensor
+import device
 
 def optimized_matmul(A, B):
-    """自动优化的矩阵乘法，在NPU上运行"""
-    # BOAS编译器会自动选择最优的执行策略
+    """自动优化的矩阵乘法，自动选择最佳设备"""
+    # BOAS编译器会自动选择最优的执行策略和设备
     return tensor.matmul(A, B)
 
 def main():
+    # 查看可用设备
+    device.list_devices()
+    # 输出: GPU 0: NVIDIA RTX 3080 [CURRENT]
+    #       NPU 0: Ascend 910A
+    #       CPU 0: Host CPU
+
     # 创建大矩阵
     A = tensor.random(4096, 4096)
     B = tensor.random(4096, 4096)
-    
-    # 执行矩阵乘法 - 自动使用NPU加速
+
+    # 执行矩阵乘法 - 自动在GPU/NPU上加速
     C = optimized_matmul(A, B)
-    
-    print("Matrix multiplication completed!")
+
+    print("Matrix multiplication completed on best device!")
+```
+
+### 手动指定设备
+
+```python
+import tensor
+import device
+
+def main():
+    # 使用GPU
+    device.set_device("GPU", 0)
+    A = tensor.random(2048, 2048)
+    B = tensor.random(2048, 2048)
+    C = tensor.matmul(A, B)  # 在GPU上执行
+
+    # 切换到NPU
+    device.set_device("NPU", 0)
+    D = tensor.matmul(A, B)  # 在NPU上执行
 ```
 
 ## 🏗️ 架构
@@ -143,18 +188,42 @@ BOAS 编译器流水线
 ## 📚 文档
 
 - [语言指南](docs/language_guide.md) - Python语法说明
-- [NPU优化](docs/npu_optimization.md) - 优化技术详解
+- [GPU支持](docs/GPU_SUPPORT.md) - **新！** GPU使用指南和API文档
+- [NPU优化](docs/npu_optimization.md) - NPU优化技术详解
 - [API参考](docs/api_reference.md) - 完整API文档
 - [示例代码](examples/) - 更多示例
+- [设备管理](docs/device_management.md) - 多设备管理和选择
 
 ## 🎯 使用场景
 
 BOAS 特别适合以下场景：
 
-- **深度学习训练**: 大规模矩阵运算
-- **推理加速**: 模型部署优化
+- **深度学习训练**: 大规模矩阵运算（GPU/NPU加速）
+- **推理加速**: 模型部署优化（自动设备选择）
 - **科学计算**: 高性能数值计算
 - **数据处理**: 大规模数据并行处理
+- **混合硬件环境**: GPU + NPU 协同计算
+
+## 🎮 支持的设备
+
+| 设备类型 | 状态 | 性能 | 推荐场景 |
+|---------|------|------|---------|
+| **Nvidia GPU** | ✅ 支持 | 优秀 | 通用AI计算、大规模训练 |
+| **华为昇腾 NPU** | ✅ 支持 | 优秀 | 国产化、边缘推理 |
+| **CPU** | ✅ 支持 | 良好 | 开发调试、小规模计算 |
+| AMD GPU (ROCm) | 🔄 计划中 | - | 即将支持 |
+| Intel GPU | 🔄 计划中 | - | 即将支持 |
+
+### 设备自动选择
+
+BOAS会自动检测可用设备并选择最佳选项：
+
+```
+[DeviceManager] 找到 3 个可用设备
+[0] GPU 0: NVIDIA RTX 3080 (10GB) [CURRENT] ⚡
+[1] NPU 0: Ascend 910A (32GB)
+[2] CPU 0: Host CPU (fallback)
+```
 
 ## 🤝 贡献
 
