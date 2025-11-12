@@ -1,0 +1,51 @@
+# Build directories
+build/
+cmake-build-*/
+*.dir/
+
+# Compiled files
+*.o
+*.so
+*.a
+*.dylib
+*.exe
+
+# LLVM/MLIR generated
+*.inc
+*.cpp.inc
+*.h.inc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+*.egg
+
+# Temporary files
+*.tmp
+*.log
+.cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Keep documentation in build
+!build/*.md
+!build/*.sh
+!build/*.py
+!build/demo.sh
+!build/summary.sh
+!build/complete_demo.sh
+!build/final_demo.sh
