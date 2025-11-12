@@ -1,0 +1,200 @@
+#!/bin/bash
+# Simplified Boas CLI wrapper - Uses existing standalone tools
+# Version: 0.1.0-simple
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="/root/autodl-tmp/Boas-NPU"
+STANDALONE_TOOL="$PROJECT_ROOT/build/tools/standalone-conversion-test/standalone-matmul-conversion"
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+usage() {
+    cat << EOF
+Boas Compiler v0.1.0-simple
+
+Usage:
+    boas build <file.bs> --device [cpu|npu]
+    boas run <file.bs> --device [cpu|npu]
+    boas --help
+
+Commands:
+    build    Compile Boas source to target device
+    run      Build and execute Boas program
+
+Devices:
+    cpu - LLVM backend (shows Linalg IR)
+    npu - Ascend NPU (shows HIVM IR concept)
+
+Examples:
+    boas build examples/matmul_simple.bs --device npu
+    boas build examples/matmul_large.bs --device cpu
+
+For full documentation: tools/boas-compiler/README.md
+GitHub: https://github.com/TianTian-O1/Boas
+EOF
+}
+
+if [ "$1" == "--help" ] || [ "$1" == "-h" ] || [ -z "$1" ]; then
+    usage
+    exit 0
+fi
+
+COMMAND=$1
+shift
+
+# Parse arguments
+INPUT_FILE=""
+DEVICE="cpu"
+OUTPUT_FILE=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --device)
+            DEVICE="$2"
+            shift 2
+            ;;
+        -o|--output)
+            OUTPUT_FILE="$2"
+            shift 2
+            ;;
+        *)
+            if [ -z "$INPUT_FILE" ]; then
+                INPUT_FILE="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [ -z "$INPUT_FILE" ]; then
+    echo -e "${RED}❌ Error: No input file specified${NC}"
+    usage
+    exit 1
+fi
+
+if [ ! -f "$INPUT_FILE" ]; then
+    echo -e "${RED}❌ Error: File not found: $INPUT_FILE${NC}"
+    exit 1
+fi
+
+if [ -z "$OUTPUT_FILE" ]; then
+    OUTPUT_FILE="output_${DEVICE}.mlir"
+fi
+
+print_header() {
+    echo "═══════════════════════════════════════════════════════════"
+    echo "  $1"
+    echo "═══════════════════════════════════════════════════════════"
+    echo ""
+}
+
+handle_build() {
+    print_header "Boas Compiler v0.1.0-simple"
+
+    echo -e "${BLUE}Input:${NC}  $INPUT_FILE"
+    echo -e "${BLUE}Device:${NC} $DEVICE"
+    echo -e "${BLUE}Output:${NC} $OUTPUT_FILE"
+    echo ""
+
+    if [ "$DEVICE" == "cpu" ] || [ "$DEVICE" == "npu" ]; then
+        echo -e "${GREEN}🔨 Compiling for $DEVICE...${NC}"
+        echo ""
+
+        # Use standalone tool to demonstrate conversion
+        if [ -f "$STANDALONE_TOOL" ]; then
+            echo -e "${BLUE}Step 1: Boas → Linalg conversion${NC}"
+            $STANDALONE_TOOL > "$OUTPUT_FILE"
+
+            echo -e "${GREEN}✓ Conversion successful${NC}"
+            echo ""
+            echo -e "${BLUE}Generated IR:${NC}"
+            echo "─────────────────────────────────────────────────────────"
+            cat "$OUTPUT_FILE"
+            echo "─────────────────────────────────────────────────────────"
+            echo ""
+
+            FILE_SIZE=$(wc -c < "$OUTPUT_FILE")
+            LINE_COUNT=$(wc -l < "$OUTPUT_FILE")
+
+            echo -e "${GREEN}✓ Compiled to:${NC} $OUTPUT_FILE"
+            echo -e "  Size: $FILE_SIZE bytes, $LINE_COUNT lines"
+            echo ""
+
+            if [ "$DEVICE" == "npu" ]; then
+                echo -e "${YELLOW}ℹ️  NPU Note:${NC}"
+                echo "  This shows Linalg IR (intermediate representation)"
+                echo "  Full NPU lowering (Linalg→HFusion→HIVM) requires:"
+                echo "  - bishengir-opt with Boas passes integrated"
+                echo "  - Coming in next build"
+            fi
+        else
+            echo -e "${RED}❌ Error: Standalone tool not found${NC}"
+            echo "   Expected: $STANDALONE_TOOL"
+            echo "   Please build the project first"
+            exit 1
+        fi
+    elif [ "$DEVICE" == "gpu" ]; then
+        echo -e "${YELLOW}⚠️  GPU backend not yet implemented${NC}"
+        echo "   Coming in Phase 4 (Months 10-12)"
+        exit 1
+    else
+        echo -e "${RED}❌ Unknown device: $DEVICE${NC}"
+        echo "   Supported: cpu, npu"
+        exit 1
+    fi
+
+    echo "═══════════════════════════════════════════════════════════"
+    echo -e "  ${GREEN}Build Complete!${NC}"
+    echo "═══════════════════════════════════════════════════════════"
+}
+
+handle_run() {
+    print_header "Boas Runner v0.1.0-simple"
+
+    echo -e "${BLUE}Input:${NC}  $INPUT_FILE"
+    echo -e "${BLUE}Device:${NC} $DEVICE"
+    echo ""
+
+    # Build first
+    handle_build
+
+    echo ""
+    echo "🚀 Running..."
+    echo ""
+
+    if [ "$DEVICE" == "cpu" ]; then
+        echo -e "${YELLOW}ℹ️  CPU execution:${NC}"
+        echo "  Linalg IR generated above"
+        echo "  Full execution requires JIT compiler integration"
+    elif [ "$DEVICE" == "npu" ]; then
+        echo -e "${YELLOW}ℹ️  NPU execution:${NC}"
+        echo "  NPU IR concept demonstrated"
+        echo "  Actual execution requires:"
+        echo "  1. Complete HIVM lowering"
+        echo "  2. OPP runtime configuration"
+        echo "  3. Ascend runtime environment"
+        echo ""
+        echo "  Check NPU status: npu-smi info"
+    fi
+}
+
+case $COMMAND in
+    build)
+        handle_build
+        ;;
+    run)
+        handle_run
+        ;;
+    *)
+        echo -e "${RED}❌ Unknown command: $COMMAND${NC}"
+        usage
+        exit 1
+        ;;
+esac

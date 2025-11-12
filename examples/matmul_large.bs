@@ -1,0 +1,20 @@
+// Larger matrix multiplication for NPU performance testing
+
+module {
+  func.func @matmul_large() -> tensor<100x100xf32> {
+    // Create 100x100 matrices
+    %a = arith.constant dense<1.0> : tensor<100x100xf32>
+    %b = arith.constant dense<2.0> : tensor<100x100xf32>
+
+    // Matrix multiplication
+    %result = boas.matmul %a, %b : tensor<100x100xf32>
+
+    // Result should be a 100x100 matrix with all elements = 200.0
+    return %result : tensor<100x100xf32>
+  }
+
+  func.func @main() {
+    %result = call @matmul_large() : () -> tensor<100x100xf32>
+    return
+  }
+}

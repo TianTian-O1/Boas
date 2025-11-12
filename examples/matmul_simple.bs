@@ -1,0 +1,30 @@
+// Simple 2x2 matrix multiplication example for Boas
+// This file demonstrates the basic MatMul operation on NPU
+
+module {
+  // Matrix multiplication function
+  func.func @matmul_2x2() -> tensor<2x2xf32> {
+    // Create input matrices
+    %a = arith.constant dense<[[1.0, 2.0],
+                                [3.0, 4.0]]> : tensor<2x2xf32>
+
+    %b = arith.constant dense<[[5.0, 6.0],
+                                [7.0, 8.0]]> : tensor<2x2xf32>
+
+    // Perform matrix multiplication using Boas dialect
+    // This will be lowered to Linalg, then to device-specific ops
+    %result = boas.matmul %a, %b : tensor<2x2xf32>
+
+    // Expected result:
+    // [[19, 22],
+    //  [43, 50]]
+
+    return %result : tensor<2x2xf32>
+  }
+
+  // Main entry point
+  func.func @main() {
+    %result = call @matmul_2x2() : () -> tensor<2x2xf32>
+    return
+  }
+}

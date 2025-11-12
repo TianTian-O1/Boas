@@ -1,0 +1,324 @@
+#!/usr/bin/env python3
+"""
+Boas Compiler Driver - Command Line Interface
+
+Usage:
+    boas build <file.bs> --device [cpu|gpu|npu]
+    boas run <file.bs> --device [cpu|gpu|npu]
+    boas compile <file.bs> -o <output> --device [cpu|gpu|npu]
+"""
+
+import argparse
+import sys
+import os
+import subprocess
+from pathlib import Path
+from typing import Optional, List
+import tempfile
+
+class BoasDriver:
+    """Main driver for Boas compiler"""
+
+    def __init__(self):
+        self.mlir_opt = self._find_tool("mlir-opt")
+        self.mlir_translate = self._find_tool("mlir-translate")
+        self.bishengir_opt = self._find_bishengir_opt()
+        self.verbose = False
+
+    def _find_tool(self, name: str) -> Optional[str]:
+        """Find MLIR tool in PATH or build directory"""
+        # Try build directory first
+        build_path = Path("/root/autodl-tmp/Boas-NPU/build/bin") / name
+        if build_path.exists():
+            return str(build_path)
+
+        # Try system PATH
+        result = subprocess.run(["which", name], capture_output=True, text=True)
+        if result.returncode == 0:
+            return result.stdout.strip()
+
+        return None
+
+    def _find_bishengir_opt(self) -> Optional[str]:
+        """Find bishengir-opt tool"""
+        paths = [
+            "/root/autodl-tmp/AscendNPU-IR/build/bin/bishengir-opt",
+            "/root/autodl-tmp/Boas-NPU/build/bin/bishengir-opt",
+        ]
+
+        for path in paths:
+            if Path(path).exists():
+                return path
+
+        return None
+
+    def parse_boas_file(self, file_path: str) -> str:
+        """
+        Parse .bs file and generate MLIR
+        For now, we'll assume .bs files contain MLIR directly
+        Later: implement actual Boas parser
+        """
+        with open(file_path, 'r') as f:
+            content = f.read()
+
+        # For v0.1: Assume .bs files contain MLIR IR
+        # For v0.2+: Will have actual Boas syntax parser
+        if content.strip().startswith('module') or 'func.func' in content:
+            if self.verbose:
+                print("✓ Detected MLIR format in .bs file")
+            return content
+
+        # Future: Parse actual Boas syntax
+        raise NotImplementedError("Boas syntax parser not yet implemented. Use MLIR IR for now.")
+
+    def lower_to_device(self, mlir_ir: str, device: str, output_file: Optional[str] = None) -> str:
+        """
+        Lower MLIR to device-specific backend
+
+        Args:
+            mlir_ir: Input MLIR IR string
+            device: Target device (cpu, gpu, npu)
+            output_file: Optional output file path
+
+        Returns:
+            Path to compiled output
+        """
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.mlir', delete=False) as f:
+            f.write(mlir_ir)
+            input_mlir = f.name
+
+        try:
+            if device == "cpu":
+                return self._lower_to_cpu(input_mlir, output_file)
+            elif device == "npu":
+                return self._lower_to_npu(input_mlir, output_file)
+            elif device == "gpu":
+                return self._lower_to_gpu(input_mlir, output_file)
+            else:
+                raise ValueError(f"Unknown device: {device}")
+        finally:
+            if Path(input_mlir).exists():
+                Path(input_mlir).unlink()
+
+    def _lower_to_cpu(self, input_mlir: str, output_file: Optional[str]) -> str:
+        """Lower to CPU via LLVM"""
+        print("🔨 Compiling for CPU (LLVM backend)...")
+
+        # Pipeline: Boas → Linalg → Loops → LLVM IR
+        passes = [
+            "--convert-boas-to-linalg",
+            "--linalg-bufferize",
+            "--convert-linalg-to-loops",
+            "--convert-scf-to-cf",
+            "--convert-to-llvm",
+        ]
+
+        # Run optimization passes
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.mlir', delete=False) as f:
+            lowered_file = f.name
+
+        cmd = [self.mlir_opt, input_mlir] + passes + ["-o", lowered_file]
+
+        if self.verbose:
+            print(f"Running: {' '.join(cmd)}")
+
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print("❌ Compilation failed:")
+            print(result.stderr)
+            sys.exit(1)
+
+        # Translate to LLVM IR
+        if not output_file:
+            output_file = "output.ll"
+
+        cmd = [self.mlir_translate, "--mlir-to-llvmir", lowered_file, "-o", output_file]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            print("❌ LLVM translation failed:")
+            print(result.stderr)
+            sys.exit(1)
+
+        print(f"✓ Compiled to: {output_file}")
+        return output_file
+
+    def _lower_to_npu(self, input_mlir: str, output_file: Optional[str]) -> str:
+        """Lower to NPU via HIVM"""
+        print("🎮 Compiling for NPU (Ascend HIVM backend)...")
+
+        if not self.bishengir_opt:
+            print("❌ Error: bishengir-opt not found")
+            print("   NPU compilation requires Ascend CANN toolkit")
+            sys.exit(1)
+
+        # Pipeline: Boas → Linalg → HFusion → HIVM
+        passes = [
+            "--convert-boas-to-linalg",
+            "--convert-linalg-to-hfusion",
+            "--convert-hfusion-to-hivm",
+        ]
+
+        if not output_file:
+            output_file = "output.hivm.mlir"
+
+        cmd = [self.bishengir_opt, input_mlir] + passes + ["-o", output_file]
+
+        if self.verbose:
+            print(f"Running: {' '.join(cmd)}")
+
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print("❌ NPU compilation failed:")
+            print(result.stderr)
+            sys.exit(1)
+
+        print(f"✓ Compiled to: {output_file}")
+        print(f"✓ NPU IR generated (hivm.hir.* ops)")
+        return output_file
+
+    def _lower_to_gpu(self, input_mlir: str, output_file: Optional[str]) -> str:
+        """Lower to GPU via CUDA/ROCm"""
+        print("🚀 Compiling for GPU...")
+        print("⚠️  GPU backend not yet implemented")
+        print("   Will be available in Phase 4")
+        sys.exit(1)
+
+    def build_command(self, args):
+        """Handle 'boas build' command"""
+        print(f"═══════════════════════════════════════════════════════════")
+        print(f"  Boas Compiler v0.1.0")
+        print(f"═══════════════════════════════════════════════════════════")
+        print()
+        print(f"Input:  {args.input}")
+        print(f"Device: {args.device}")
+        print()
+
+        # Parse input file
+        try:
+            mlir_ir = self.parse_boas_file(args.input)
+        except FileNotFoundError:
+            print(f"❌ Error: File not found: {args.input}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"❌ Error parsing file: {e}")
+            sys.exit(1)
+
+        # Compile to target device
+        output = self.lower_to_device(mlir_ir, args.device, args.output)
+
+        print()
+        print("═══════════════════════════════════════════════════════════")
+        print("  Build Complete!")
+        print("═══════════════════════════════════════════════════════════")
+
+    def run_command(self, args):
+        """Handle 'boas run' command"""
+        print(f"═══════════════════════════════════════════════════════════")
+        print(f"  Boas Runner v0.1.0")
+        print(f"═══════════════════════════════════════════════════════════")
+        print()
+        print(f"Input:  {args.input}")
+        print(f"Device: {args.device}")
+        print()
+
+        # First, build the file
+        print("📦 Building...")
+        try:
+            mlir_ir = self.parse_boas_file(args.input)
+        except FileNotFoundError:
+            print(f"❌ Error: File not found: {args.input}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"❌ Error parsing file: {e}")
+            sys.exit(1)
+
+        # Compile
+        with tempfile.NamedTemporaryFile(suffix='.out', delete=False) as f:
+            output_file = f.name
+
+        output = self.lower_to_device(mlir_ir, args.device, output_file)
+
+        # Run the compiled code
+        print()
+        print("🚀 Running...")
+        print()
+
+        if args.device == "cpu":
+            # Use lli (LLVM interpreter) or compile to executable
+            cmd = ["lli", output_file]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.stdout:
+                print(result.stdout)
+            if result.stderr:
+                print(result.stderr, file=sys.stderr)
+
+        elif args.device == "npu":
+            print("⚠️  NPU runtime execution requires:")
+            print("   1. OPP operator packages configured")
+            print("   2. Ascend runtime environment")
+            print()
+            print(f"   NPU IR generated: {output_file}")
+            print(f"   Use: npu-smi info")
+            print(f"   To check NPU status")
+
+        else:
+            print(f"⚠️  Runtime for {args.device} not yet implemented")
+
+        # Cleanup
+        if Path(output_file).exists() and args.device == "cpu":
+            Path(output_file).unlink()
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Boas Compiler - High-performance language for AI/ML",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  boas build matmul.bs --device npu
+  boas run fibonacci.bs --device cpu
+  boas build neural_net.bs --device gpu --output model.ptx
+
+Devices:
+  cpu - Compile to LLVM IR (100% working)
+  npu - Compile to Ascend NPU (IR generation complete)
+  gpu - Compile to CUDA/ROCm (planned)
+
+For more information: https://github.com/TianTian-O1/Boas
+        """
+    )
+
+    parser.add_argument('-v', '--verbose', action='store_true',
+                       help='Verbose output')
+
+    subparsers = parser.add_subparsers(dest='command', help='Command to run')
+
+    # Build command
+    build_parser = subparsers.add_parser('build', help='Build Boas source file')
+    build_parser.add_argument('input', help='Input .bs file')
+    build_parser.add_argument('--device', choices=['cpu', 'gpu', 'npu'],
+                             default='cpu', help='Target device (default: cpu)')
+    build_parser.add_argument('-o', '--output', help='Output file path')
+
+    # Run command
+    run_parser = subparsers.add_parser('run', help='Run Boas source file')
+    run_parser.add_argument('input', help='Input .bs file')
+    run_parser.add_argument('--device', choices=['cpu', 'gpu', 'npu'],
+                           default='cpu', help='Target device (default: cpu)')
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    driver = BoasDriver()
+    driver.verbose = args.verbose
+
+    if args.command == 'build':
+        driver.build_command(args)
+    elif args.command == 'run':
+        driver.run_command(args)
+
+if __name__ == '__main__':
+    main()

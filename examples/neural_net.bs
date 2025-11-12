@@ -1,0 +1,30 @@
+// Neural network layer example (forward pass only)
+// Demonstrates multiple matmul operations
+
+module {
+  // Simple 2-layer network: Input(784) -> Hidden(128) -> Output(10)
+  func.func @neural_net_forward(%input: tensor<1x784xf32>) -> tensor<1x10xf32> {
+    // Layer 1: 784 -> 128
+    %w1 = arith.constant dense<1.0> : tensor<784x128xf32>
+    %h1 = boas.matmul %input, %w1 : tensor<1x784xf32>, tensor<784x128xf32> -> tensor<1x128xf32>
+
+    // ReLU activation (simplified - just return for now)
+    // %h1_relu = boas.relu %h1 : tensor<1x128xf32>
+
+    // Layer 2: 128 -> 10
+    %w2 = arith.constant dense<1.0> : tensor<128x10xf32>
+    %output = boas.matmul %h1, %w2 : tensor<1x128xf32>, tensor<128x10xf32> -> tensor<1x10xf32>
+
+    return %output : tensor<1x10xf32>
+  }
+
+  func.func @main() {
+    // Create dummy input
+    %input = arith.constant dense<1.0> : tensor<1x784xf32>
+
+    // Run forward pass
+    %output = call @neural_net_forward(%input) : (tensor<1x784xf32>) -> tensor<1x10xf32>
+
+    return
+  }
+}
