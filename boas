@@ -20,21 +20,34 @@ usage() {
 Boas Compiler v0.1.0-simple
 
 Usage:
-    boas build <file.bs> --device [cpu|npu]
-    boas run <file.bs> --device [cpu|npu]
+    boas build <file.bs> --device [cpu|npu|gpu]
+    boas build <file.bs> --npu|-o <output>
+    boas run <file.bs> --cpu|--npu
     boas --help
 
 Commands:
     build    Compile Boas source to target device
     run      Build and execute Boas program
 
+Device Options:
+    --device <target>    Specify target device (cpu|npu|gpu)
+    --cpu                Shorthand for --device cpu
+    --npu                Shorthand for --device npu
+    --gpu                Shorthand for --device gpu
+
+Output Options:
+    -o <file>            Specify output file
+    --output <file>      Same as -o
+
 Devices:
     cpu - LLVM backend (shows Linalg IR)
     npu - Ascend NPU (shows HIVM IR concept)
+    gpu - GPU backend (planned)
 
 Examples:
+    boas build matmul.bs --npu -o matmul
     boas build examples/matmul_simple.bs --device npu
-    boas build examples/matmul_large.bs --device cpu
+    boas build examples/matmul_large.bs --cpu -o result.mlir
 
 For full documentation: tools/boas-compiler/README.md
 GitHub: https://github.com/TianTian-O1/Boas
@@ -59,6 +72,18 @@ while [[ $# -gt 0 ]]; do
         --device)
             DEVICE="$2"
             shift 2
+            ;;
+        --npu)
+            DEVICE="npu"
+            shift
+            ;;
+        --cpu)
+            DEVICE="cpu"
+            shift
+            ;;
+        --gpu)
+            DEVICE="gpu"
+            shift
             ;;
         -o|--output)
             OUTPUT_FILE="$2"
