@@ -1,0 +1,328 @@
+# Boas Language Demo
+# This file demonstrates the planned syntax for the Boas programming language
+
+# ============================================================================
+# 1. Basic Types and Variables
+# ============================================================================
+
+def basic_types():
+    # Integers
+    x: i32 = 42
+    y: i64 = 1000000
+
+    # Floating point
+    pi: f32 = 3.14159
+    e: f64 = 2.71828
+
+    # Boolean
+    is_valid: bool = true
+
+    # String
+    message: str = "Hello, Boas!"
+
+    # Type inference
+    auto_int = 100      # Inferred as i32
+    auto_float = 3.14   # Inferred as f64
+
+# ============================================================================
+# 2. Functions and Control Flow
+# ============================================================================
+
+def factorial(n: i32) -> i32:
+    if n <= 1:
+        return 1
+    else:
+        return n * factorial(n - 1)
+
+def fibonacci(n: i32) -> i32:
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+
+def sum_range(start: i32, end: i32) -> i32:
+    total = 0
+    for i in range(start, end):
+        total += i
+    return total
+
+# ============================================================================
+# 3. Matrix and Tensor Operations
+# ============================================================================
+
+def matrix_operations():
+    # Create matrices
+    a = Matrix([[1.0, 2.0], [3.0, 4.0]])
+    b = Matrix([[5.0, 6.0], [7.0, 8.0]])
+
+    # Matrix multiplication
+    c = a @ b
+
+    # Element-wise operations
+    d = a + b
+    e = a * 2.0
+
+    # Indexing
+    value = a[0, 1]  # Get element at row 0, col 1
+
+    return c
+
+def tensor_operations():
+    # Create tensors with explicit shapes
+    x: Tensor[f32, [128, 256]] = Tensor.randn([128, 256])
+    w: Tensor[f32, [256, 512]] = Tensor.randn([256, 512])
+
+    # Matrix multiplication
+    y = x @ w  # Result shape: [128, 512]
+
+    # Reshape
+    z = y.reshape([64, 1024])
+
+    # Reduction operations
+    mean = y.mean()
+    sum_val = y.sum()
+    max_val = y.max()
+
+    return y
+
+# ============================================================================
+# 4. Memory Management (Rust-Style)
+# ============================================================================
+
+def ownership_example():
+    # Owned value - this function owns the data
+    data: owned Vector[f32] = Vector([1.0, 2.0, 3.0, 4.0])
+
+    # Transfer ownership
+    result = process_owned(data)
+    # 'data' can't be used here anymore
+
+    return result
+
+def process_owned(v: owned Vector[f32]) -> Vector[f32]:
+    # This function now owns 'v'
+    return v.map(lambda x: x * 2.0)
+
+def borrowing_example():
+    data = Vector([1.0, 2.0, 3.0])
+
+    # Immutable borrow
+    sum_val = read_data(ref data)
+
+    # Mutable borrow
+    modify_data(mut data)
+
+    return data
+
+def read_data(v: ref Vector[f32]) -> f32:
+    # Can read but not modify
+    return v.sum()
+
+def modify_data(v: mut Vector[f32]):
+    # Can modify the vector
+    v[0] = 42.0
+
+# ============================================================================
+# 5. Concurrency (Go-Style)
+# ============================================================================
+
+async def fetch_data(id: i32) -> str:
+    # Simulate network request
+    sleep(1.0)
+    return f"Data for ID: {id}"
+
+def concurrent_example():
+    # Spawn multiple tasks
+    task1 = spawn fetch_data(1)
+    task2 = spawn fetch_data(2)
+    task3 = spawn fetch_data(3)
+
+    # Wait for results
+    result1 = await task1
+    result2 = await task2
+    result3 = await task3
+
+    print(result1, result2, result3)
+
+def channel_example():
+    # Create channel
+    ch = Channel[i32](buffer_size=10)
+
+    # Producer
+    spawn {
+        for i in range(100):
+            ch.send(i)
+        ch.close()
+    }
+
+    # Consumer
+    spawn {
+        while value := ch.receive():
+            print(value)
+    }
+
+# ============================================================================
+# 6. Hardware Acceleration
+# ============================================================================
+
+@device(npu)
+def matmul_npu(a: Tensor[f32], b: Tensor[f32]) -> Tensor[f32]:
+    # This runs on NPU
+    return a @ b
+
+@device(gpu)
+def relu_gpu(x: Tensor[f32]) -> Tensor[f32]:
+    # This runs on GPU
+    return x.maximum(0.0)
+
+def mixed_device_example():
+    # Allocate on CPU
+    data = Tensor.randn([1024, 1024])
+
+    # Transfer to NPU and compute
+    with device.NPU(0) as npu:
+        data_npu = data.to(npu)
+        result_npu = matmul_npu(data_npu, data_npu)
+
+        # Transfer back to CPU
+        result = result_npu.to_cpu()
+
+    return result
+
+# ============================================================================
+# 7. Neural Network Example
+# ============================================================================
+
+from boas.nn import Module, Linear, ReLU, Dropout
+from boas.optim import Adam
+from boas.tensor import Tensor
+
+class NeuralNetwork(Module):
+    def __init__(self, input_size: i32, hidden_size: i32, output_size: i32):
+        super().__init__()
+        self.fc1 = Linear(input_size, hidden_size)
+        self.relu = ReLU()
+        self.dropout = Dropout(0.5)
+        self.fc2 = Linear(hidden_size, output_size)
+
+    def forward(self, x: Tensor[f32]) -> Tensor[f32]:
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.dropout(x)
+        x = self.fc2(x)
+        return x
+
+@device(npu)
+def train_model():
+    # Create model
+    model = NeuralNetwork(784, 256, 10)
+    optimizer = Adam(model.parameters(), lr=0.001)
+
+    # Training loop
+    for epoch in range(10):
+        for batch, labels in dataloader:
+            # Forward pass
+            output = model(batch)
+            loss = cross_entropy(output, labels)
+
+            # Backward pass
+            loss.backward()
+
+            # Update weights
+            optimizer.step()
+            optimizer.zero_grad()
+
+            print(f"Epoch {epoch}, Loss: {loss.item()}")
+
+# ============================================================================
+# 8. Pattern Matching
+# ============================================================================
+
+def pattern_match_example(value):
+    match value:
+        case 0:
+            print("Zero")
+        case x if x > 0:
+            print("Positive")
+        case x if x < 0:
+            print("Negative")
+        case Vector(x, y):
+            print(f"2D Vector: ({x}, {y})")
+        case Matrix(rows, cols):
+            print(f"Matrix: {rows}x{cols}")
+        case _:
+            print("Unknown")
+
+# ============================================================================
+# 9. Generic Functions
+# ============================================================================
+
+def dot[T](a: Vector[T], b: Vector[T]) -> T:
+    """Generic dot product for any numeric type"""
+    result = T.zero()
+    for i in range(len(a)):
+        result += a[i] * b[i]
+    return result
+
+def map[T, U](vec: Vector[T], f: fn(T) -> U) -> Vector[U]:
+    """Generic map function"""
+    result = Vector[U]()
+    for item in vec:
+        result.push(f(item))
+    return result
+
+# ============================================================================
+# 10. Advanced: Compile-Time Computation
+# ============================================================================
+
+@compile_time
+def compute_factorial(n: i32) -> i32:
+    if n <= 1:
+        return 1
+    return n * compute_factorial(n - 1)
+
+# Use compile-time value in type
+const SIZE: i32 = compute_factorial(5)  # Computed at compile time: 120
+
+def use_compile_time():
+    # Array size known at compile time
+    array: [f32; SIZE] = [0.0; SIZE]
+    return array
+
+# ============================================================================
+# Main Entry Point
+# ============================================================================
+
+def main():
+    print("=== Boas Language Demo ===")
+
+    # Basic operations
+    print("\n1. Basic Types:")
+    basic_types()
+
+    # Functions
+    print("\n2. Factorial and Fibonacci:")
+    print(f"factorial(5) = {factorial(5)}")
+    print(f"fibonacci(10) = {fibonacci(10)}")
+
+    # Matrix operations
+    print("\n3. Matrix Operations:")
+    result = matrix_operations()
+    print(result)
+
+    # Memory management
+    print("\n4. Memory Management:")
+    data = borrowing_example()
+    print(data)
+
+    # Concurrency
+    print("\n5. Concurrency:")
+    concurrent_example()
+
+    # Hardware acceleration
+    print("\n6. NPU Acceleration:")
+    a = Tensor.randn([100, 100])
+    b = Tensor.randn([100, 100])
+    c = matmul_npu(a, b)
+    print(f"NPU matmul result shape: {c.shape}")
+
+    print("\n=== Demo Complete ===")
