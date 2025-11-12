@@ -64,10 +64,16 @@ Python 的简洁性 + C++ 的性能 + Rust 的安全性 + Go 的并发性 + 硬�
 ```bash
 cd /root/autodl-tmp/Boas-NPU
 
-# 使用 CLI 工具编译
+# 使用 CLI 工具编译（简写格式）
+./boas build matmul.bs --npu -o matmul
+
+# 或使用完整格式
 ./boas build examples/matmul_simple.bs --device npu
 
-# 或运行演示
+# 查看所有选项
+./boas --help
+
+# 运行项目演示
 ./build/summary.sh
 ```
 
