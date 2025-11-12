@@ -49,6 +49,21 @@
 Python Simplicity + C++ Performance + Rust Safety + Go Concurrency + Hardware Acceleration
 ```
 
+### 🚀 Strategic Decision: Leverage Mojo Standard Library
+
+**NEW (2025-11-13)**: Instead of building stdlib from scratch, **reuse Mojo's stdlib as foundation**.
+
+**Rationale**:
+- ✅ Mojo is MLIR-based (same as Boas)
+- ✅ Mojo targets AI/ML (same as Boas)
+- ✅ Mojo has mature, battle-tested implementations
+- ✅ **Saves 10+ months** of development time
+- ✅ Enables focus on Boas differentiators (safety, concurrency, NPU)
+
+**Integration Plan**: See [MOJO_STDLIB_INTEGRATION.md](MOJO_STDLIB_INTEGRATION.md)
+
+**Timeline Impact**: 24 months → **~18 months** (25% faster)
+
 **Target Users**:
 - Machine learning engineers
 - Scientific computing researchers

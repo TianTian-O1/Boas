@@ -269,6 +269,11 @@ Boas-NPU/
 - [ ] Package manager
 - [ ] Tooling (LSP, debugger)
 
+**🚀 Strategic Update**: Leveraging [Mojo's stdlib](https://github.com/modular/modular/tree/main/mojo/stdlib) as foundation
+- Saves 10+ months of development
+- Battle-tested MLIR-based implementations
+- See [MOJO_STDLIB_INTEGRATION.md](MOJO_STDLIB_INTEGRATION.md) for details
+
 **See [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) for detailed timeline.**
 
 ---
@@ -372,6 +377,7 @@ Built with:
 - [MLIR](https://mlir.llvm.org/) - Multi-Level Intermediate Representation
 - [LLVM](https://llvm.org/) - Compiler infrastructure
 - [Ascend CANN](https://www.hiascend.com/) - NPU toolkit
+- [Mojo](https://docs.modular.com/mojo/) - Standard library foundation
 
 Inspired by:
 - Python's simplicity
@@ -379,6 +385,7 @@ Inspired by:
 - Rust's safety
 - Go's concurrency
 - Julia's numerical focus
+- Mojo's pragmatic design
 
 ---
 
